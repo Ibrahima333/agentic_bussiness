@@ -49,7 +49,7 @@ export function PipelineInput({ state, setState }: PipelineInputProps) {
       setState(prev => ({
         ...prev,
         isLoading: false,
-        errorMessage: error instanceof Error ? error.message : "Échec du pipeline.",
+        errorMessage: error instanceof Error ? error.message : "Échec de l'analyse.",
       }));
     }
   };

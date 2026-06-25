@@ -39,7 +39,7 @@ export function ChatArea({ state }: ChatAreaProps) {
               <Sparkles className="w-8 h-8 text-slate-300" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">Bienvenue sur Agentic BI</h2>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">Bienvenue sur AskData</h2>
               <p className="text-slate-400 text-sm leading-relaxed">
                 Commencez par configurer votre base de données et votre modèle LLM dans la sidebar.
               </p>

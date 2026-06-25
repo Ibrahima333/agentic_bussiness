@@ -4,7 +4,7 @@ import { cn } from "../lib/utils";
 import { testLlmConfig, fetchLlmConfig, saveLlmConfig } from "../lib/api";
 
 type Provider = "gemini" | "crok";
-const STORAGE_KEY = "agentic_bi_provider";
+const STORAGE_KEY = "askdata_provider";
 
 type Form = { gemini_api_key: string; crok_api_key: string };
 type Props = { onProviderChange?: (provider: string) => void };

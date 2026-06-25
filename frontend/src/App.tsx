@@ -13,7 +13,7 @@ export default function App() {
     providers: [],
     selectedDatabase: "",
     selectedSchema: "",
-    selectedProvider: (localStorage.getItem("agentic_bi_provider") as string) || "gemini",
+    selectedProvider: (localStorage.getItem("askdata_provider") as string) || "gemini",
     overwriteExisting: false,
     history: [],
     activeResultId: null,
@@ -43,7 +43,7 @@ export default function App() {
           ? prev.selectedSchema
           : config.selectedSchema,
         // Le provider vient toujours du localStorage — jamais du backend
-        selectedProvider: localStorage.getItem("agentic_bi_provider") || prev.selectedProvider || config.selectedProvider,
+        selectedProvider: localStorage.getItem("askdata_provider") || prev.selectedProvider || config.selectedProvider,
         history,
         activeResultId: nextActiveResultId,
         activeResult: prev.activeResult?.id === nextActiveResultId ? prev.activeResult : null,
@@ -72,7 +72,7 @@ export default function App() {
         setState((prev) => ({
           ...prev,
           isBootstrapping: false,
-          errorMessage: error instanceof Error ? error.message : "Unable to load the application.",
+          errorMessage: error instanceof Error ? error.message : "Impossible de charger l'application.",
         }));
       }
     }
@@ -115,7 +115,7 @@ export default function App() {
         }
         setState((prev) => ({
           ...prev,
-          errorMessage: error instanceof Error ? error.message : "Unable to refresh schemas.",
+          errorMessage: error instanceof Error ? error.message : "Impossible de récupérer les schémas.",
         }));
       }
     }
@@ -157,7 +157,7 @@ export default function App() {
         }
         setState((prev) => ({
           ...prev,
-          errorMessage: error instanceof Error ? error.message : "Unable to load the selected result.",
+          errorMessage: error instanceof Error ? error.message : "Impossible de charger le résultat sélectionné.",
         }));
       } finally {
         activeResultRequestRef.current = null;

@@ -39,7 +39,7 @@ export function Sidebar({ state, setState, onRefresh, onClearHistory }: SidebarP
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
-            <h1 className="font-bold text-slate-900 leading-tight">Agentic BI</h1>
+            <h1 className="font-bold text-slate-900 leading-tight">AskData</h1>
             <p className="text-[11px] text-slate-400">Business Intelligence</p>
           </div>
         </div>

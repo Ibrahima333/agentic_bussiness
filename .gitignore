@@ -211,3 +211,11 @@ __marimo__/
 *.html
 *.txt
 *.sql
+# ── Données générées par le pipeline AskData ─────────────────────────────────
+requests/
+outputs/
+dataviz/
+sql/
+schema/
+runtime/
+frontend/dist/

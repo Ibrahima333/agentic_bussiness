@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { PipelineResult } from "../types";
-import { Code2, Table, Database, BarChart3, FileText, Terminal, Download, FileDown } from "lucide-react";
+import { Code2, Table, Database, BarChart3, FileText, Terminal, Download, FileDown, Loader2 } from "lucide-react";
 import { cn } from "../lib/utils";
 import Markdown from "react-markdown";
 import { buildArtifactUrl } from "../lib/api";
@@ -14,12 +14,20 @@ type TabType = "sql" | "results" | "metadata" | "chart" | "report" | "logs";
 
 export function ResultTabs({ result }: ResultTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>("sql");
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const handleDownload = (artifactPath: string) => {
     window.open(buildArtifactUrl(artifactPath), "_blank", "noopener,noreferrer");
   };
 
-  const handleExportPdf = () => exportReportToPdf(result);
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      await exportReportToPdf(result);
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
     { id: "sql", label: "SQL", icon: <Code2 className="w-4 h-4" /> },
@@ -211,9 +219,12 @@ export function ResultTabs({ result }: ResultTabsProps) {
               <button
                 type="button"
                 onClick={() => void handleExportPdf()}
-                className="flex items-center gap-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 px-4 py-2 rounded-xl transition-colors shadow-sm"
+                disabled={isExportingPdf}
+              className="flex items-center gap-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-60 px-4 py-2 rounded-xl transition-colors shadow-sm"
               >
-                <FileDown className="w-4 h-4" />Télécharger PDF
+              {isExportingPdf
+                ? <><Loader2 className="w-4 h-4 animate-spin" />Capture…</>
+                : <><FileDown className="w-4 h-4" />Télécharger PDF</>}
               </button>
             </div>
             <div className="prose prose-slate max-w-none bg-white border border-slate-200 rounded-xl p-8 shadow-sm">

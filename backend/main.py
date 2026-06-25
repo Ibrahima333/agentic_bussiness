@@ -1,10 +1,9 @@
-"""Point d'entrée FastAPI pour l'application Agentic BI.
+"""Point d'entrée FastAPI pour l'application AskData.
 
 Ce module définit toutes les routes HTTP exposées par le backend :
 - Configuration base de données et LLM (lecture, test, sauvegarde)
 - Lancement du pipeline d'analyse (SQL → CSV → DataViz → Insights)
 - Récupération des résultats et artefacts
-- Diffusion du frontend React en production (si le build existe)
 """
 
 from __future__ import annotations
@@ -12,12 +11,11 @@ from __future__ import annotations
 import json as _json
 import urllib.error
 import urllib.request
-from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
+
 
 # Gestionnaires de configuration DB et LLM
 from backend.db_config import DatabaseConfig, DatabaseConfigManager
@@ -358,19 +356,3 @@ def artifact(question_name: str, artifact_type: str):
     # Tous les autres artefacts sont servis comme fichiers statiques
     return FileResponse(artifact_path, media_type=media_type, filename=artifact_path.name)
 
-
-# ── Diffusion du frontend React (build de production) ─────────────────────────
-_DIST = Path(__file__).parent.parent / "frontend" / "dist"
-
-if _DIST.exists():
-    # Fichiers statiques compilés (JS, CSS, images…)
-    app.mount("/assets", StaticFiles(directory=_DIST / "assets"), name="assets")
-
-    @app.get("/", include_in_schema=False)
-    @app.get("/{full_path:path}", include_in_schema=False)
-    def serve_spa(full_path: str = ""):
-        """Toutes les routes non-API renvoient index.html pour la SPA React."""
-        index = _DIST / "index.html"
-        if index.exists():
-            return FileResponse(index)
-        raise HTTPException(status_code=404, detail="Frontend non compilé")
