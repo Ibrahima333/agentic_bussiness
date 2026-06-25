@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Database, LayoutTemplate, Cpu, RefreshCw, History, FileText, Settings2, Trash2 } from "lucide-react";
 import { AppState } from "../types";
 import { cn } from "../lib/utils";
+import DatabaseConfig, { type DbConfigPayload } from "./DatabaseConfig";
+import { connectDbConfig, fetchDbConfig, saveDbConfig, testDbConfig } from "../lib/api";
 
 interface SidebarProps {
   state: AppState;
@@ -62,6 +64,18 @@ export function Sidebar({ state, setState, onRefresh, onClearHistory }: SidebarP
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
           </div>
+
+          <DatabaseConfig
+            api={{
+              fetchDbConfig,
+              testDbConfig,
+              saveDbConfig,
+              connectDbConfig,
+            }}
+            onAfterConnect={() => {
+              void onRefresh();
+            }}
+          />
 
           <div className="space-y-3">
             <div className="space-y-1.5">
