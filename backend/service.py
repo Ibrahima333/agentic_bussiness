@@ -13,20 +13,20 @@ from typing import Any
 
 import pandas as pd
 
-from scripts.generate_dataviz import generate_dataviz
-from scripts.generate_insights_actions import generate_insights_actions
-from scripts.generate_sql import generate_sql
-from scripts.run_analysis import execute_analysis
-from scripts.run_dataviz import run_dataviz_script
-from scripts.schema import generate_schema
-from utils.db_discovery import list_databases, list_schemas
+from backend.scripts.generate_dataviz import generate_dataviz
+from backend.scripts.generate_insights_actions import generate_insights_actions
+from backend.scripts.generate_sql import generate_sql
+from backend.scripts.run_analysis import execute_analysis
+from backend.scripts.run_dataviz import run_dataviz_script
+from backend.scripts.schema import generate_schema
+from backend.utils.db_discovery import list_databases, list_schemas
 
 
 REQUESTS_DIR = Path("requests")
 SQL_DIR = Path("sql")
 DATAVIZ_DIR = Path("dataviz")
 OUTPUTS_DIR = Path("outputs")
-PROVIDERS = ["gemini", "codex"]
+PROVIDERS = ["gemini", "crok"]
 
 
 class PipelineServiceError(RuntimeError):
@@ -319,6 +319,7 @@ def clear_history() -> dict[str, str]:
 
 
 def get_config(database_name: str | None = None) -> dict[str, Any]:
+    # list_databases() lève une exception si la connexion échoue — on la laisse remonter
     databases = list_databases()
     selected_database = database_name or (databases[0] if databases else "")
     schemas = list_schemas(selected_database) if selected_database else []

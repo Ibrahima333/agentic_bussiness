@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 class GenerationResult:
     text: str
     provider_name: str
-    command: list[str]
     stdout: str = ""
     stderr: str = ""
     requested_provider: str = "gemini"

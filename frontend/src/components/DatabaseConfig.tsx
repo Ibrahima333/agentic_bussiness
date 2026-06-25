@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Database, KeyRound, PlugZap, ShieldCheck, TestTube2 } from "lucide-react";
+import { Database, KeyRound, PlugZap } from "lucide-react";
 
 type DbType = "postgresql" | "mysql";
 
@@ -98,56 +98,43 @@ export default function DatabaseConfig({ api, onAfterConnect }: Props) {
     return parsed;
   };
 
-  const handleSubmitTest = async (e: React.FormEvent) => {
+  const handleTestAndConnect = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setStatus(null);
 
+    const payload: DbConfigPayload = {
+      ...form,
+      port: form.port,
+      password: form.password ?? "",
+    };
+
     try {
-      if (passwordIsEmpty) {
-        setStatus({ kind: "info", message: "Password is empty (will be sent as empty)." });
+      // Étape 1 : tester la connexion
+      const testResult = await api.testDbConfig(payload);
+      const ok = Boolean(testResult?.success);
+
+      if (!ok) {
+        setLastTest({ success: false, message: testResult?.message ?? "Test failed" });
+        setStatus({ kind: "error", message: testResult?.message ?? "Connexion échouée" });
+        return;
       }
 
-      const payload: DbConfigPayload = {
-        ...form,
-        port: form.port,
-        password: form.password ?? "",
-      };
+      // Étape 2 : sauvegarder et connecter
+      const connectResult = await api.connectDbConfig(payload);
+      const connected = Boolean(connectResult?.connection?.success ?? connectResult?.success ?? true);
 
-      const result = await api.testDbConfig(payload);
-      const ok = Boolean(result?.success);
-
-      setLastTest({ success: ok, message: result?.message ?? "" });
-      setStatus({ kind: ok ? "success" : "error", message: result?.message ?? (ok ? "Connection ok" : "Test failed") });
-    } catch (err) {
-      setStatus({ kind: "error", message: err instanceof Error ? err.message : "Test failed" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleConnect = async () => {
-    setIsLoading(true);
-    setStatus(null);
-
-    try {
-      const payload: DbConfigPayload = {
-        ...form,
-        password: form.password ?? "",
-      };
-
-      const result = await api.connectDbConfig(payload);
-      const ok = Boolean(result?.connection?.success ?? result?.success ?? true);
-
-      setLastTest(result?.lastTest ?? undefined);
+      setLastTest({ success: connected, message: connectResult?.message ?? (connected ? "Connecté ✓" : "Connexion échouée") });
       setStatus({
-        kind: ok ? "success" : "error",
-        message: result?.connection?.message ?? result?.message ?? (ok ? "Connected" : "Connection failed"),
+        kind: connected ? "success" : "error",
+        message: connectResult?.connection?.message ?? connectResult?.message ?? (connected ? "Connecté avec succès ✓" : "Connexion échouée"),
       });
 
-      onAfterConnect();
+      if (connected) {
+        onAfterConnect();
+      }
     } catch (err) {
-      setStatus({ kind: "error", message: err instanceof Error ? err.message : "Connect failed" });
+      setStatus({ kind: "error", message: err instanceof Error ? err.message : "Erreur de connexion" });
     } finally {
       setIsLoading(false);
     }
@@ -173,7 +160,7 @@ export default function DatabaseConfig({ api, onAfterConnect }: Props) {
       </div>
 
       <div className="p-4">
-        <form onSubmit={handleSubmitTest} className="space-y-4">
+        <form onSubmit={handleTestAndConnect} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-600 flex items-center gap-2">
@@ -286,27 +273,17 @@ export default function DatabaseConfig({ api, onAfterConnect }: Props) {
             </div>
           ) : null}
 
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-end">
+          <div className="flex justify-end">
             <button
               type="submit"
               disabled={isLoading}
-              className="inline-flex items-center justify-center gap-2 bg-white border border-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
-              <TestTube2 className="w-4 h-4" /> {isLoading ? "Testing..." : "Test"}
-            </button>
-
-            <button
-              type="button"
-              disabled={isLoading || !String(form.database).trim()}
-              onClick={() => void handleConnect()}
-              className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
-              title={!String(form.database).trim() ? "Select a database name first" : "Save & connect"}
-            >
-              <ShieldCheck className="w-4 h-4" /> Connect
+              {isLoading
+                ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Connexion…</>
+                : <><PlugZap className="w-4 h-4" /> Tester &amp; Connecter</>}
             </button>
           </div>
-
-          <div className="text-[11px] text-slate-500">Connecte : enregistre la config runtime puis vérifie la connexion.</div>
 
         </form>
       </div>

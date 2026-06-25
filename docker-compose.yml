@@ -1,14 +1,15 @@
 services:
   agentic-bi:
     build: .
+    command: ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
     env_file:
       - ./.env
+    ports:
+      - "8009:8000"
     volumes:
       - ./requests:/app/requests
       - ./sql:/app/sql
       - ./schema:/app/schema
       - ./dataviz:/app/dataviz
       - ./outputs:/app/outputs
-      - gemini-cli-config:/home/appuser/.config/@google-gemini-cli
-volumes:
-  gemini-cli-config:
+      - ./runtime:/app/runtime

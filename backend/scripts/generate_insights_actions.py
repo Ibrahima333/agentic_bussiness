@@ -7,10 +7,10 @@ from pathlib import Path
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from llm.factory import generate_with_fallback
+from backend.llm.factory import generate_with_fallback
 
 OUTPUTS_DIR = Path("outputs")
-PROMPT_TEMPLATE = Path("scripts/prompt_template_insights.txt")
+PROMPT_TEMPLATE = Path(__file__).parent / "prompt_template_insights.txt"
 
 
 def preview_csv(csv_path: Path, limit: int = 10):
@@ -110,7 +110,7 @@ def main():
         "--provider",
         type=str,
         default="gemini",
-        choices=["gemini", "codex"],
+        choices=["gemini", "crok"],
         help="LLM provider to use (default: gemini)",
     )
 

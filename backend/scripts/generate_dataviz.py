@@ -9,12 +9,12 @@ from pathlib import Path
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from llm.factory import generate_with_fallback
+from backend.llm.factory import generate_with_fallback
 
 SQL_DIR = Path("sql")
 OUTPUTS_DIR = Path("outputs")
 DATAVIZ_DIR = Path("dataviz")
-PROMPT_TEMPLATE = Path("scripts/prompt_template_dataviz.txt")
+PROMPT_TEMPLATE = Path(__file__).parent / "prompt_template_dataviz.txt"
 
 def sanitize_python_output(text: str) -> str:
     """
@@ -134,7 +134,7 @@ def main():
         "--provider",
         type=str,
         default="gemini",
-        choices=["gemini", "codex"],
+        choices=["gemini", "crok"],
         help="LLM provider to use (default: gemini)",
     )
     args = parser.parse_args()

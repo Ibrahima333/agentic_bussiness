@@ -7,7 +7,7 @@ from pathlib import Path
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from utils.db_utils import run_query
+from backend.utils.db_utils import run_query
 
 OUTPUTS_DIR = Path("outputs")
 

@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { Database, LayoutTemplate, Cpu, RefreshCw, History, FileText, Settings2, Trash2 } from "lucide-react";
+import { Database, LayoutTemplate, RefreshCw, History, FileText, Settings2, Trash2, AlertTriangle } from "lucide-react";
 import { AppState } from "../types";
 import { cn } from "../lib/utils";
 import DatabaseConfig, { type DbConfigPayload } from "./DatabaseConfig";
 import { connectDbConfig, fetchDbConfig, saveDbConfig, testDbConfig } from "../lib/api";
+import LLMModelConfig from "./LLMModelConfig";
+
 
 interface SidebarProps {
   state: AppState;
@@ -77,7 +79,18 @@ export function Sidebar({ state, setState, onRefresh, onClearHistory }: SidebarP
             }}
           />
 
+          {/* Erreur de connexion DB visible ici */}
+          {state.errorMessage && state.databases.length === 0 && (
+            <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-rose-500" />
+              <span>{state.errorMessage}</span>
+            </div>
+          )}
+
+          <LLMModelConfig onProviderChange={(p) => setState((prev) => ({ ...prev, selectedProvider: p }))} />
+
           <div className="space-y-3">
+
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
                 <Database className="w-4 h-4 text-slate-400" /> Database
@@ -114,20 +127,6 @@ export function Sidebar({ state, setState, onRefresh, onClearHistory }: SidebarP
               </select>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-slate-400" /> LLM Provider
-              </label>
-              <select
-                className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block p-2.5 outline-none transition-all"
-                value={state.selectedProvider}
-                onChange={(e) => setState({ ...state, selectedProvider: e.target.value })}
-              >
-                {state.providers.map((provider) => (
-                  <option key={provider} value={provider}>{provider}</option>
-                ))}
-              </select>
-            </div>
 
             <label className="flex items-center gap-2 cursor-pointer mt-4 group">
               <div className="relative">

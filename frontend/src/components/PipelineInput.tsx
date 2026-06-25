@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, AlertCircle } from "lucide-react";
 import { AppState } from "../types";
 import { runPipeline } from "../lib/api";
 
@@ -65,6 +65,12 @@ export function PipelineInput({ state, setState }: PipelineInputProps) {
   return (
     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent pt-10 pb-6 px-6">
       <div className="max-w-4xl mx-auto">
+        {state.errorMessage && (
+          <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-sm">
+            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-rose-500" />
+            <span>{state.errorMessage}</span>
+          </div>
+        )}
         <form 
           onSubmit={handleSubmit}
           className="bg-white border border-slate-200 rounded-2xl shadow-lg shadow-slate-200/50 overflow-hidden transition-all focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-50"

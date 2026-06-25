@@ -13,7 +13,7 @@ export default function App() {
     providers: [],
     selectedDatabase: "",
     selectedSchema: "",
-    selectedProvider: "gemini",
+    selectedProvider: (localStorage.getItem("agentic_bi_provider") as string) || "gemini",
     overwriteExisting: false,
     history: [],
     activeResultId: null,
