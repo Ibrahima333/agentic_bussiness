@@ -1,15 +1,67 @@
+# ── docker-compose.yml — Agentic BI ──────────────────────────────────────────
+# Orchestration des services de l'application :
+#   - backend  : API FastAPI (Python) sur le port 8009
+#   - frontend : SPA React servie par Nginx sur le port 3000
+#
+# Les deux services partagent le même réseau Docker "agentic-network"
+# pour communiquer entre eux sans exposer de ports inutiles.
+# ─────────────────────────────────────────────────────────────────────────────
+
 services:
-  agentic-bi:
-    build: .
-    command: ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  # ── Service backend FastAPI ─────────────────────────────────────────────────
+  backend:
+    # Construction depuis le Dockerfile racine (backend Python uniquement)
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Chargement des variables d'environnement depuis le fichier .env racine
     env_file:
       - ./.env
+    # Variables d'environnement spécifiques au conteneur backend
+    environment:
+      # Origine autorisée pour les requêtes CORS du frontend
+      - FRONTEND_ORIGIN=http://localhost:3000
+    # Mapping de ports : hôte:conteneur
+    # Le backend écoute sur le port 8009 de la machine hôte
     ports:
       - "8009:8000"
+    # Volumes persistants : données générées montées depuis l'hôte
     volumes:
-      - ./requests:/app/requests
-      - ./sql:/app/sql
-      - ./schema:/app/schema
-      - ./dataviz:/app/dataviz
-      - ./outputs:/app/outputs
-      - ./runtime:/app/runtime
+      - ./requests:/app/requests   # Fichiers de requêtes .txt
+      - ./sql:/app/sql             # Requêtes SQL générées
+      - ./schema:/app/schema       # Schémas de bases de données
+      - ./dataviz:/app/dataviz     # Scripts Python de visualisation
+      - ./outputs:/app/outputs     # Résultats : CSV, HTML, Markdown
+      - ./runtime:/app/runtime     # Configuration runtime (db_config.json, llm_config.json)
+    # Réseau partagé avec le frontend
+    networks:
+      - agentic-network
+
+  # ── Service frontend Nginx ──────────────────────────────────────────────────
+  frontend:
+    # Construction depuis le Dockerfile dans frontend/ (build React + Nginx)
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    # Variables d'environnement pour le build Vite
+    environment:
+      # URL de l'API backend accessible depuis le navigateur de l'utilisateur
+      # En production, remplacer par l'URL publique du backend
+      - VITE_API_BASE_URL=http://localhost:8009
+    # Mapping de ports : hôte:conteneur
+    # Le frontend est accessible sur http://localhost:3000
+    ports:
+      - "3000:80"
+    # Dépend du backend (démarré après le backend)
+    depends_on:
+      - backend
+    # Réseau partagé avec le backend
+    networks:
+      - agentic-network
+
+# ── Réseau Docker partagé ─────────────────────────────────────────────────────
+# Les services communiquent via les noms de service (ex: http://backend:8000)
+networks:
+  agentic-network:
+    driver: bridge

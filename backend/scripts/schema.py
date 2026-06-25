@@ -1,8 +1,23 @@
+"""Génération du fichier de schéma d'une base de données en Markdown (backend Agentic BI).
+
+Ce script interroge information_schema pour décrire les tables, colonnes
+et contraintes d'une base, puis écrit le résultat dans ``schema/``.
+
+Ce fichier de schéma est ensuite utilisé comme contexte dans le prompt
+de génération SQL.
+
+Compatible MySQL et PostgreSQL.
+
+Utilisation en ligne de commande :
+    python -m backend.scripts.schema --database ma_base --schema public
+"""
+
 import argparse
 import os
 from pathlib import Path
 import sys
 
+# Ajout du chemin parent pour les imports directs (hors package)
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
@@ -10,11 +25,24 @@ from backend.utils.db_utils import run_query
 
 
 def _db_type() -> str:
+    """Retourne le type de base de données actif depuis les variables d'environnement."""
     return os.getenv("DB_TYPE", "postgresql").lower()
 
 
 def _generate_schema_mysql(database_name: str, schema_name: str) -> list[str]:
-    # En MySQL schema == database
+    """Génère le contenu Markdown du schéma pour une base MySQL.
+
+    En MySQL, le schéma est identique à la base de données (schema_name == database_name).
+    Récupère les tables, colonnes et contraintes (clés primaires + étrangères).
+
+    Args:
+        database_name : nom de la base de données
+        schema_name   : nom du schéma (= database_name en MySQL)
+
+    Returns:
+        Liste de lignes Markdown
+    """
+    # En MySQL : le schéma cible est la base elle-même
     target = schema_name if schema_name else database_name
 
     content = [
@@ -22,7 +50,7 @@ def _generate_schema_mysql(database_name: str, schema_name: str) -> list[str]:
         "_Seules les tables physiques (BASE TABLE) sont prises en compte._\n",
     ]
 
-    # Tables
+    # Section TABLES : liste des tables physiques
     _, rows = run_query(
         "SELECT table_name FROM information_schema.tables "
         "WHERE table_schema = %s AND table_type = 'BASE TABLE' ORDER BY table_name;",
@@ -32,7 +60,7 @@ def _generate_schema_mysql(database_name: str, schema_name: str) -> list[str]:
     for (table_name,) in rows:
         content.append(f"- {target}.{table_name}")
 
-    # Colonnes
+    # Section COLUMNS : colonnes avec types et nullabilité
     _, rows = run_query(
         "SELECT table_name, column_name, column_type, is_nullable "
         "FROM information_schema.columns "
@@ -44,7 +72,7 @@ def _generate_schema_mysql(database_name: str, schema_name: str) -> list[str]:
     for row in rows:
         content.append("- " + " | ".join(map(str, [f"{target}.{row[0]}"] + list(row[1:]))))
 
-    # Contraintes (clés primaires + étrangères via key_column_usage)
+    # Section CONSTRAINTS : clés primaires et étrangères
     _, rows = run_query(
         """
         SELECT kcu.table_name, kcu.constraint_name, kcu.column_name,
@@ -69,11 +97,24 @@ def _generate_schema_mysql(database_name: str, schema_name: str) -> list[str]:
 
 
 def _generate_schema_postgresql(database_name: str, schema_name: str) -> list[str]:
+    """Génère le contenu Markdown du schéma pour une base PostgreSQL.
+
+    Récupère les tables, colonnes et contraintes (clés primaires + étrangères)
+    du schéma spécifié.
+
+    Args:
+        database_name : nom de la base de données
+        schema_name   : nom du schéma PostgreSQL (ex: "public")
+
+    Returns:
+        Liste de lignes Markdown
+    """
     content = [
         f"# Schéma PostgreSQL : `{database_name}.{schema_name}`\n",
         "_Seules les tables physiques (BASE TABLE) sont prises en compte._\n",
     ]
 
+    # Requêtes pour chaque section du schéma
     queries = {
         "tables": (
             "SELECT table_name FROM information_schema.tables "
@@ -110,7 +151,9 @@ def _generate_schema_postgresql(database_name: str, schema_name: str) -> list[st
         content.append(f"\n## {section.upper()}\n")
         for row in rows:
             row_list = list(row)
+            # Préfixage de la première colonne (nom de table) avec le schéma
             row_list[0] = f"{schema_name}.{row_list[0]}"
+            # Préfixage de la table étrangère pour les contraintes FK
             if section == "constraints" and row_list[3] and str(row_list[3]) != "None":
                 row_list[3] = f"{schema_name}.{row_list[3]}"
             content.append("- " + " | ".join(map(str, row_list)))
@@ -119,25 +162,35 @@ def _generate_schema_postgresql(database_name: str, schema_name: str) -> list[st
 
 
 def generate_schema(database_name: str, schema_name: str = "public"):
-    # Pour MySQL : schema_name == database_name
+    """Génère et sauvegarde le fichier de schéma Markdown pour une base de données.
+
+    Le fichier est écrit dans ``schema/<database_name>__<schema_name>_schema.md``.
+
+    Args:
+        database_name : nom de la base de données
+        schema_name   : nom du schéma (défaut : "public")
+    """
+    # En MySQL : si schema_name est vide, on utilise database_name
     if _db_type() == "mysql" and not schema_name:
         schema_name = database_name
 
     schema_path = Path(f"schema/{database_name}__{schema_name}_schema.md")
     schema_path.parent.mkdir(exist_ok=True)
 
+    # Génération selon le type de base
     if _db_type() == "mysql":
         content = _generate_schema_mysql(database_name, schema_name)
     else:
         content = _generate_schema_postgresql(database_name, schema_name)
 
+    # Écriture du fichier Markdown
     schema_path.write_text("\n".join(content), encoding="utf-8")
     print(f"[schema] Généré : {schema_path}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Génère le schéma d'une base de données.")
-    parser.add_argument("--database", required=True)
-    parser.add_argument("--schema", default="")
+    parser = argparse.ArgumentParser(description="Génère le schéma d'une base de données en Markdown.")
+    parser.add_argument("--database", required=True, help="Nom de la base de données")
+    parser.add_argument("--schema", default="", help="Nom du schéma (défaut : vide → public ou database_name)")
     args = parser.parse_args()
     generate_schema(args.database, args.schema)

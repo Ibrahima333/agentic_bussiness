@@ -1,3 +1,13 @@
+"""Génération du schéma d'une base de données en Markdown (backend Agentic BI).
+
+Ce module expose ``get_schema_markdown`` qui interroge information_schema
+pour décrire toutes les tables et colonnes d'un schéma donné, compatible
+MySQL et PostgreSQL.
+
+Le résultat est un document Markdown utilisé ensuite comme contexte dans
+les prompts LLM de génération SQL.
+"""
+
 import os
 from typing import List
 
@@ -5,19 +15,29 @@ from backend.utils.db_utils import run_query
 
 
 def _db_type() -> str:
+    """Retourne le type de base de données actif depuis les variables d'environnement."""
     return os.getenv("DB_TYPE", "postgresql").lower()
 
 
 def get_schema_markdown(database_name: str, schema_name: str) -> str:
-    """
-    Génère un markdown décrivant toutes les tables et colonnes
-    du schéma donné (MySQL ou PostgreSQL).
+    """Génère un document Markdown décrivant toutes les tables et colonnes du schéma.
+
+    Compatible MySQL et PostgreSQL. En MySQL, schema_name == database_name.
+
+    Args:
+        database_name: nom de la base de données
+        schema_name: nom du schéma (inutilisé en MySQL, = database_name)
+
+    Returns:
+        Chaîne Markdown avec les tables, colonnes, types et contraintes
     """
     db_type = _db_type()
 
     if db_type == "mysql":
-        # En MySQL, schema_name == database_name
+        # En MySQL : le schéma cible est la base de données elle-même
         target_db = schema_name if schema_name else database_name
+
+        # Récupération de la liste des tables physiques
         sql_tables = """
             SELECT table_name
             FROM information_schema.tables
@@ -32,6 +52,8 @@ def get_schema_markdown(database_name: str, schema_name: str) -> str:
             return f"Erreur lors de la récupération des tables MySQL : {e}"
 
         lines = [f"# Schéma MySQL : `{target_db}`\n"]
+
+        # Pour chaque table, on liste les colonnes avec leurs propriétés
         for table in tables:
             sql_cols = """
                 SELECT column_name, column_type, is_nullable, column_key, column_default
@@ -54,7 +76,7 @@ def get_schema_markdown(database_name: str, schema_name: str) -> str:
         return "\n".join(lines)
 
     else:
-        # PostgreSQL
+        # PostgreSQL : on liste les tables du schéma cible
         sql_tables = """
             SELECT table_name
             FROM information_schema.tables
@@ -69,6 +91,8 @@ def get_schema_markdown(database_name: str, schema_name: str) -> str:
             return f"Erreur lors de la récupération des tables PostgreSQL : {e}"
 
         lines = [f"# Schéma PostgreSQL : `{database_name}.{schema_name}`\n"]
+
+        # Pour chaque table, on liste les colonnes avec leurs propriétés
         for table in tables:
             sql_cols = """
                 SELECT column_name, data_type, is_nullable, column_default

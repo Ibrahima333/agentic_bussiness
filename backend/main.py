@@ -1,3 +1,12 @@
+"""Point d'entrée FastAPI pour l'application Agentic BI.
+
+Ce module définit toutes les routes HTTP exposées par le backend :
+- Configuration base de données et LLM (lecture, test, sauvegarde)
+- Lancement du pipeline d'analyse (SQL → CSV → DataViz → Insights)
+- Récupération des résultats et artefacts
+- Diffusion du frontend React en production (si le build existe)
+"""
+
 from __future__ import annotations
 
 import json as _json
@@ -10,12 +19,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
+# Gestionnaires de configuration DB et LLM
 from backend.db_config import DatabaseConfig, DatabaseConfigManager
 from backend.llm_config import LLMConfigManager
 
-
+# Fonctions métier du service pipeline
 from backend.service import (
-
     clear_history,
     PipelineServiceError,
     default_cors_origins,
@@ -27,12 +36,14 @@ from backend.service import (
 )
 
 
+# ── Création de l'application FastAPI ────────────────────────────────────────
 app = FastAPI(
     title="Agentic BI API",
     version="0.1.0",
-    description="Backend API for the React Agentic BI frontend.",
+    description="Backend API pour le frontend React Agentic BI.",
 )
 
+# Middleware CORS : autorise le frontend (React dev + prod) à appeler l'API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=default_cors_origins(),
@@ -42,13 +53,17 @@ app.add_middleware(
 )
 
 
+# ── Route de santé ────────────────────────────────────────────────────────────
 @app.get("/api/health")
 def health() -> dict[str, str]:
+    """Vérifie que le serveur est opérationnel."""
     return {"status": "ok"}
 
 
+# ── Routes de configuration ───────────────────────────────────────────────────
 @app.get("/api/config")
 def config(database_name: str | None = Query(default=None, alias="databaseName")) -> dict:
+    """Retourne la liste des bases, schémas et providers disponibles."""
     try:
         return get_config(database_name)
     except Exception as exc:
@@ -57,6 +72,7 @@ def config(database_name: str | None = Query(default=None, alias="databaseName")
 
 @app.get("/api/databases")
 def databases() -> dict:
+    """Liste les bases de données accessibles via la connexion active."""
     try:
         config_data = get_config()
         return {"databases": config_data["databases"]}
@@ -66,6 +82,7 @@ def databases() -> dict:
 
 @app.get("/api/databases/{database_name}/schemas")
 def schemas(database_name: str) -> dict:
+    """Liste les schémas disponibles dans une base de données donnée."""
     try:
         config_data = get_config(database_name)
         return {"schemas": config_data["schemas"]}
@@ -75,16 +92,20 @@ def schemas(database_name: str) -> dict:
 
 @app.get("/api/providers")
 def providers() -> dict:
+    """Retourne la liste des providers LLM supportés."""
     return {"providers": ["gemini", "crok"]}
 
 
+# ── Routes de configuration LLM ──────────────────────────────────────────────
 @app.get("/api/llm-config")
 def llm_config_get() -> dict:
+    """Retourne la configuration LLM actuelle (clés masquées) et le dernier test."""
     mgr = LLMConfigManager.instance()
     return {"config": mgr.get_masked(), "lastTest": mgr.last_test()}
 
 
 def _test_gemini_key(api_key: str) -> tuple[bool, str]:
+    """Teste la validité d'une clé API Gemini via une requête légère."""
     url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}&pageSize=1"
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
     try:
@@ -107,9 +128,11 @@ def _test_crok_key(api_key: str, api_url: str = "") -> tuple[bool, str]:
     if not api_key:
         return False, "Clé API Groq manquante"
 
+    # URL de base configurable, Groq par défaut
     base_url = api_url.rstrip("/") if api_url else "https://api.groq.com/openai/v1"
     endpoint = base_url + "/chat/completions"
 
+    # Requête minimale pour valider la clé sans consommer de tokens
     payload = _json.dumps({
         "model": "llama-3.3-70b-versatile",
         "messages": [{"role": "user", "content": "Reply with just: ok"}],
@@ -147,11 +170,13 @@ def _test_crok_key(api_key: str, api_url: str = "") -> tuple[bool, str]:
 
 @app.post("/api/llm-config/test")
 def llm_config_test(payload: dict) -> dict:
+    """Teste la clé API Gemini ou Groq fournie dans le payload."""
     mgr = LLMConfigManager.instance()
     try:
         gemini_key = str(payload.get("gemini_api_key", "") or "")
         crok_key = str(payload.get("crok_api_key", "") or "")
 
+        # Test de la clé Gemini en priorité
         if gemini_key:
             ok, msg = _test_gemini_key(gemini_key)
             if ok:
@@ -159,6 +184,7 @@ def llm_config_test(payload: dict) -> dict:
             mgr.record_test(ok, msg)
             return {"success": ok, "message": msg, "lastTest": mgr.last_test()}
 
+        # Sinon test de la clé Groq
         if crok_key:
             crok_url = str(payload.get("crok_api_url", "") or "")
             ok, msg = _test_crok_key(crok_key, crok_url)
@@ -178,6 +204,7 @@ def llm_config_test(payload: dict) -> dict:
 
 @app.post("/api/llm-config/save")
 def llm_config_save(payload: dict) -> dict:
+    """Persiste la configuration LLM sur disque."""
     mgr = LLMConfigManager.instance()
     try:
         mgr.update(payload, persist=True)
@@ -188,28 +215,26 @@ def llm_config_save(payload: dict) -> dict:
         return {"success": False, "message": str(exc), "lastTest": mgr.last_test()}
 
 
-
+# ── Routes de configuration base de données ───────────────────────────────────
 @app.get("/api/db-config")
 def db_config_get() -> dict:
+    """Retourne la configuration DB actuelle (mot de passe masqué) et le dernier test."""
     mgr = DatabaseConfigManager.instance()
     return {
         "config": mgr.get_masked(),
         "lastTest": mgr.last_test(),
-        "supportedTypes": list(mgr.get().to_dict().keys()) if False else ["postgresql", "mysql"],
+        "supportedTypes": ["postgresql", "mysql"],
     }
 
 
 @app.post("/api/db-config/test")
 def db_config_test(payload: dict) -> dict:
-    # Validation rapide + test de connexion (si besoin).
-
+    """Valide la structure de la configuration DB et enregistre un test."""
+    # Validation rapide de la structure via le dataclass DatabaseConfig
     try:
         cfg = DatabaseConfig(**payload)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    # On s’appuie sur DatabaseConfigManager.update pour valider la structure.
-    # Pour le test “connexion”, on fait un contrôle minimal via la logique backend.
 
     mgr = DatabaseConfigManager.instance()
     try:
@@ -223,6 +248,7 @@ def db_config_test(payload: dict) -> dict:
 
 @app.post("/api/db-config/save")
 def db_config_save(payload: dict) -> dict:
+    """Persiste la configuration DB sur disque."""
     mgr = DatabaseConfigManager.instance()
     try:
         cfg = mgr.update(payload, persist=True)
@@ -234,9 +260,7 @@ def db_config_save(payload: dict) -> dict:
 
 @app.post("/api/db-config/connect")
 def db_config_connect(payload: dict) -> dict:
-    # On enregistre la configuration puis on confirme la connexion.
-    # Pour l’instant, on persiste la config et on renvoie un résultat qui débloque l’interface.
-
+    """Persiste la configuration DB et confirme la connexion au frontend."""
     mgr = DatabaseConfigManager.instance()
     try:
         cfg = mgr.update(payload, persist=True)
@@ -255,15 +279,17 @@ def db_config_connect(payload: dict) -> dict:
         }
 
 
-
+# ── Routes historique et résultats ────────────────────────────────────────────
 @app.get("/api/results")
 def results() -> dict:
+    """Liste tous les résultats d'analyse disponibles."""
     return {"history": list_available_results()}
 
 
 @app.delete("/history")
 @app.delete("/api/history")
 def delete_history() -> dict[str, str]:
+    """Supprime tout l'historique d'analyses (requests, sql, dataviz, outputs)."""
     try:
         return clear_history()
     except Exception as exc:
@@ -272,14 +298,26 @@ def delete_history() -> dict[str, str]:
 
 @app.get("/api/results/{question_name}")
 def result_detail(question_name: str) -> dict:
+    """Retourne le détail complet d'un résultat d'analyse (SQL, CSV, rapport, chart…)."""
     try:
         return load_result(question_name)
     except PipelineServiceError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+# ── Route principale : lancement du pipeline d'analyse ───────────────────────
 @app.post("/api/pipeline/run")
 def pipeline_run(payload: dict) -> dict:
+    """Lance le pipeline complet : génération SQL → exécution → dataviz → insights.
+
+    Paramètres attendus dans le body JSON :
+    - questionText      : question en langage naturel
+    - artifactName      : nom optionnel pour les artefacts générés
+    - databaseName      : base de données cible
+    - schemaName        : schéma cible
+    - providerName      : provider LLM ("gemini" ou "crok")
+    - overwriteExisting : écraser si le nom existe déjà
+    """
     try:
         return run_pipeline(
             question_text=str(payload.get("questionText", "")).strip(),
@@ -295,39 +333,44 @@ def pipeline_run(payload: dict) -> dict:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+# ── Route de téléchargement d'artefacts ──────────────────────────────────────
 @app.get("/api/artifacts/{question_name}/{artifact_type}")
 def artifact(question_name: str, artifact_type: str):
+    """Sert un artefact généré (sql, csv, metadata, chart, report, logs)."""
     try:
         artifact_path, media_type = get_artifact_path(question_name, artifact_type)
     except PipelineServiceError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    # Les logs sont lus depuis le résultat en mémoire
     if artifact_type == "logs":
         result = load_result(question_name)
         return PlainTextResponse(result["logs"], media_type=media_type)
 
     if not artifact_path.exists():
-        raise HTTPException(status_code=404, detail=f"Artifact not found: {artifact_path}")
+        raise HTTPException(status_code=404, detail=f"Artefact introuvable : {artifact_path}")
 
+    # Les métadonnées sont retournées en JSON structuré
     if artifact_type == "metadata":
         result = load_result(question_name)
         return JSONResponse(result["metadata"])
 
+    # Tous les autres artefacts sont servis comme fichiers statiques
     return FileResponse(artifact_path, media_type=media_type, filename=artifact_path.name)
 
 
-# ── Serve React frontend (production build) ──────────────────────────────────
+# ── Diffusion du frontend React (build de production) ─────────────────────────
 _DIST = Path(__file__).parent.parent / "frontend" / "dist"
 
 if _DIST.exists():
-    # Fichiers statiques (JS, CSS, images…)
+    # Fichiers statiques compilés (JS, CSS, images…)
     app.mount("/assets", StaticFiles(directory=_DIST / "assets"), name="assets")
 
     @app.get("/", include_in_schema=False)
     @app.get("/{full_path:path}", include_in_schema=False)
     def serve_spa(full_path: str = ""):
-        """Toutes les routes non-API renvoient index.html (SPA)."""
+        """Toutes les routes non-API renvoient index.html pour la SPA React."""
         index = _DIST / "index.html"
         if index.exists():
             return FileResponse(index)
-        raise HTTPException(status_code=404, detail="Frontend not built")
+        raise HTTPException(status_code=404, detail="Frontend non compilé")
