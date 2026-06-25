@@ -42,9 +42,8 @@ export default function App() {
         selectedSchema: preserveSelection && prev.selectedSchema
           ? prev.selectedSchema
           : config.selectedSchema,
-        selectedProvider: preserveSelection && prev.selectedProvider
-          ? prev.selectedProvider
-          : config.selectedProvider,
+        // Le provider vient toujours du localStorage — jamais du backend
+        selectedProvider: localStorage.getItem("agentic_bi_provider") || prev.selectedProvider || config.selectedProvider,
         history,
         activeResultId: nextActiveResultId,
         activeResult: prev.activeResult?.id === nextActiveResultId ? prev.activeResult : null,

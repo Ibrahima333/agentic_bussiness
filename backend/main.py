@@ -3,10 +3,12 @@ from __future__ import annotations
 import json as _json
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.db_config import DatabaseConfig, DatabaseConfigManager
 from backend.llm_config import LLMConfigManager
@@ -312,3 +314,20 @@ def artifact(question_name: str, artifact_type: str):
         return JSONResponse(result["metadata"])
 
     return FileResponse(artifact_path, media_type=media_type, filename=artifact_path.name)
+
+
+# ── Serve React frontend (production build) ──────────────────────────────────
+_DIST = Path(__file__).parent.parent / "frontend" / "dist"
+
+if _DIST.exists():
+    # Fichiers statiques (JS, CSS, images…)
+    app.mount("/assets", StaticFiles(directory=_DIST / "assets"), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def serve_spa(full_path: str = ""):
+        """Toutes les routes non-API renvoient index.html (SPA)."""
+        index = _DIST / "index.html"
+        if index.exists():
+            return FileResponse(index)
+        raise HTTPException(status_code=404, detail="Frontend not built")

@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { PipelineResult } from "../types";
-import { Code2, Table, Database, BarChart3, FileText, Terminal, Download } from "lucide-react";
+import { Code2, Table, Database, BarChart3, FileText, Terminal, Download, FileDown } from "lucide-react";
 import { cn } from "../lib/utils";
 import Markdown from "react-markdown";
 import { buildArtifactUrl } from "../lib/api";
+import { exportReportToPdf } from "../lib/exportPdf";
 
 interface ResultTabsProps {
   result: PipelineResult;
@@ -17,6 +18,8 @@ export function ResultTabs({ result }: ResultTabsProps) {
   const handleDownload = (artifactPath: string) => {
     window.open(buildArtifactUrl(artifactPath), "_blank", "noopener,noreferrer");
   };
+
+  const handleExportPdf = () => exportReportToPdf(result);
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
     { id: "sql", label: "SQL", icon: <Code2 className="w-4 h-4" /> },
@@ -203,13 +206,14 @@ export function ResultTabs({ result }: ResultTabsProps) {
 
         {activeTab === "report" && (
           <div className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-700">Insights &amp; Actions</h3>
               <button
                 type="button"
-                onClick={() => handleDownload(result.artifactUrls.report)}
-                className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm"
+                onClick={() => void handleExportPdf()}
+                className="flex items-center gap-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 px-4 py-2 rounded-xl transition-colors shadow-sm"
               >
-                <Download className="w-4 h-4" /> Download Markdown
+                <FileDown className="w-4 h-4" />Télécharger PDF
               </button>
             </div>
             <div className="prose prose-slate max-w-none bg-white border border-slate-200 rounded-xl p-8 shadow-sm">

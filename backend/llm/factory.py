@@ -19,24 +19,10 @@ def get_provider(provider_name: str | None):
 
 
 def generate_with_fallback(prompt: str, provider_name: str | None = "gemini") -> GenerationResult:
+    """Génère du texte avec le provider choisi — sans fallback silencieux."""
     requested_provider = normalize_provider_name(provider_name)
     provider = get_provider(requested_provider)
 
-    try:
-        result = provider.generate(prompt)
-        result.requested_provider = requested_provider
-        return result
-    except LLMProviderError as exc:
-        if provider.name == "gemini":
-            raise
-
-        # Fallback vers Gemini si le provider principal échoue
-        fallback_provider = GeminiProvider()
-        fallback_result = fallback_provider.generate(prompt)
-        fallback_result.requested_provider = requested_provider
-        fallback_result.used_fallback = True
-        fallback_result.fallback_reason = str(exc)
-        fallback_result.warnings.append(
-            f"Provider '{requested_provider}' a échoué. Gemini utilisé en fallback."
-        )
-        return fallback_result
+    result = provider.generate(prompt)
+    result.requested_provider = requested_provider
+    return result
