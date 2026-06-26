@@ -112,7 +112,7 @@ def generate_dataviz(question_file: Path, provider_name: str = "gemini"):
 
     Args:
         question_file : chemin vers le fichier .txt de la question originale
-        provider_name : provider LLM à utiliser ("gemini" ou "crok")
+        provider_name : provider LLM à utiliser ("gemini" ou "groq")
     """
     question_name = question_file.stem
 
@@ -193,7 +193,7 @@ def main():
         "--provider",
         type=str,
         default="gemini",
-        choices=["gemini", "crok"],
+        choices=["gemini", "groq"],
         help="Provider LLM à utiliser (défaut : gemini)",
     )
     args = parser.parse_args()

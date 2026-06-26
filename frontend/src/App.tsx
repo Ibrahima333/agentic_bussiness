@@ -3,12 +3,13 @@ import { Sidebar } from "./components/Sidebar";
 import { ChatArea } from "./components/ChatArea";
 import { PipelineInput } from "./components/PipelineInput";
 import { Dashboard } from "./components/Dashboard";
+import { QuickChat } from "./components/QuickChat";
 import { AppState } from "./types";
 import { clearHistory, fetchConfig, fetchHistory, fetchResult } from "./lib/api";
-import { MessageSquare, LayoutDashboard } from "lucide-react";
+import { MessageSquare, LayoutDashboard, MessagesSquare } from "lucide-react";
 
 export default function App() {
-  const [view, setView] = useState<"chat" | "dashboard">("chat");
+  const [view, setView] = useState<"chat" | "quickchat" | "dashboard">("chat");
   const activeResultRequestRef = useRef<string | null>(null);
   const [state, setState] = useState<AppState>({
     databases: [],
@@ -211,6 +212,18 @@ export default function App() {
           </button>
           <button
             type="button"
+            onClick={() => setView("quickchat")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              view === "quickchat"
+                ? "bg-zinc-100 text-zinc-900"
+                : "text-zinc-500 hover:text-zinc-800"
+            }`}
+          >
+            <MessagesSquare className="w-4 h-4" />
+            Chat IA
+          </button>
+          <button
+            type="button"
             onClick={() => setView("dashboard")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               view === "dashboard"
@@ -224,14 +237,20 @@ export default function App() {
         </nav>
 
         {/* Contenu selon la vue */}
-        {view === "chat" ? (
+        {view === "chat" && (
           <div className="flex-1 flex flex-col relative overflow-hidden">
             <ChatArea state={state} />
             <PipelineInput state={state} setState={setState} />
           </div>
-        ) : (
-          <Dashboard />
         )}
+        {view === "quickchat" && (
+          <QuickChat
+            database={state.selectedDatabase}
+            schema={state.selectedSchema}
+            provider={state.selectedProvider}
+          />
+        )}
+        {view === "dashboard" && <Dashboard />}
       </main>
     </div>
   );

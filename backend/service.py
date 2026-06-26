@@ -45,7 +45,7 @@ DATAVIZ_DIR = Path("dataviz")     # Scripts Python de visualisation générés
 OUTPUTS_DIR = Path("outputs")     # CSV, HTML, Markdown, metadata par analyse
 
 # Providers LLM supportés par l'application
-PROVIDERS = ["gemini", "crok"]
+PROVIDERS = ["gemini", "groq"]
 
 
 class PipelineServiceError(RuntimeError):
@@ -453,12 +453,30 @@ def get_artifact_path(question_name: str, artifact_type: str) -> tuple[Path, str
 
 
 def default_cors_origins() -> list[str]:
-    """Retourne la liste des origines CORS autorisées depuis les variables d'environnement."""
+    """Retourne la liste des origines CORS autorisées depuis les variables d'environnement.
+
+    Inclut automatiquement la variante HTTPS de l'origine principale pour couvrir
+    le frontend servi en TLS (Nginx avec certificat auto-signé ou Let's Encrypt).
+    """
     # FRONTEND_ORIGIN : origine principale du frontend (dev ou production)
     frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
     # FRONTEND_CORS_ORIGINS : origines supplémentaires séparées par des virgules
     additional = os.getenv("FRONTEND_CORS_ORIGINS", "")
+
     origins = [frontend_origin]
+
+    # Ajouter automatiquement la variante HTTPS si l'origine principale est HTTP
+    # (couvre le frontend HTTPS sans avoir à changer FRONTEND_ORIGIN dans .env)
+    if frontend_origin.startswith("http://"):
+        https_variant = "https://" + frontend_origin[len("http://"):]
+        origins.append(https_variant)
+
+    # Origines Vite dev (toujours utiles en développement local)
+    for dev_port in ("5173", "5174"):
+        origins.append(f"http://localhost:{dev_port}")
+        origins.append(f"https://localhost:{dev_port}")
+
     if additional.strip():
         origins.extend(origin.strip() for origin in additional.split(",") if origin.strip())
+
     return origins

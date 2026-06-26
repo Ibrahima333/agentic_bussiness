@@ -40,13 +40,30 @@ export interface DashboardItem {
   id: string;
   questionName: string;
   questionText: string;
-  chartHtml: string;
+  /** URL de l'artefact chart (ex: /api/artifacts/xxx/chart).
+   *  Préféré à chartHtml pour éviter de saturer localStorage avec de gros HTML Plotly. */
+  chartUrl: string;
   database: string;
   schema: string;
   provider: string;
   pinnedAt: number;
   /** Largeur en colonnes (6 = demi, 12 = pleine largeur) */
   w: number;
+}
+
+export interface KpiItem {
+  id: string;               // = questionName
+  questionText: string;     // question posée en langage naturel
+  questionName: string;
+  columnName: string;       // nom de la colonne retournée
+  value: string;            // valeur formatée pour l'affichage
+  rawValue: number | null;  // valeur numérique brute (pour le delta)
+  previousValue: number | null; // valeur avant le dernier refresh
+  database: string;
+  schema: string;
+  provider: string;
+  pinnedAt: number;
+  lastUpdated: number;
 }
 
 export interface AppState {

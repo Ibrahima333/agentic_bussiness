@@ -1,11 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { PipelineResult } from "../types";
-import { Code2, Table, Database, BarChart3, FileText, Terminal, Download, FileDown, Loader2, Pin, PinOff } from "lucide-react";
+import { Code2, Table, Database, BarChart3, FileText, Terminal, Download, FileDown, Loader2, Pin, PinOff, ClipboardList } from "lucide-react";
 import { cn } from "../lib/utils";
 import Markdown from "react-markdown";
 import { buildArtifactUrl } from "../lib/api";
 import { exportReportToPdf } from "../lib/exportPdf";
 import { pinChart, unpinChart, isPinned } from "../lib/dashboard";
+import { getChatExportCount, clearChatExport } from "../lib/chatExport";
+import { pinKpi, isKpiPinned, unpinKpi, formatKpiValue } from "../lib/kpi";
+import { TrendingUp } from "lucide-react";
 
 interface ResultTabsProps {
   result: PipelineResult;
@@ -17,17 +20,37 @@ export function ResultTabs({ result }: ResultTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>("results");
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [pinned, setPinned] = useState(() => isPinned(result.id));
+  const [chatExportCount, setChatExportCount] = useState(() => getChatExportCount());
+  const [kpiPinned, setKpiPinned] = useState(() => isKpiPinned(result.id));
+
+  // Détection automatique : résultat = 1 ligne × 1 colonne → candidat KPI
+  const kpiCandidate = (() => {
+    if (result.csvData.length !== 1) return null;
+    const keys = Object.keys(result.csvData[0] || {});
+    if (keys.length !== 1) return null;
+    const col = keys[0];
+    const { formatted, numeric } = formatKpiValue(result.csvData[0][col]);
+    return { columnName: col, formatted, numeric };
+  })();
+
+  // Sync les états épinglé quand l'utilisateur change de résultat dans l'historique
+  useEffect(() => {
+    setPinned(isPinned(result.id));
+    setKpiPinned(isKpiPinned(result.id));
+  }, [result.id]);
 
   const handlePin = () => {
     if (pinned) {
       unpinChart(result.id);
       setPinned(false);
     } else {
+      // On stocke l'URL de l'artefact (pas le HTML brut) pour éviter
+      // de saturer localStorage avec les ~3 Mo de Plotly embarqué
       pinChart({
         id: result.id,
         questionName: result.questionName,
         questionText: result.questionText,
-        chartHtml: result.chartHtml,
+        chartUrl: result.artifactUrls.chart,
         database: result.databaseName,
         schema: result.schemaName,
         provider: result.providerName,
@@ -40,10 +63,20 @@ export function ResultTabs({ result }: ResultTabsProps) {
     window.open(buildArtifactUrl(artifactPath), "_blank", "noopener,noreferrer");
   };
 
+  // Synchronise le badge Chat quand l'utilisateur revient sur cet onglet
+  useEffect(() => {
+    const onFocus = () => setChatExportCount(getChatExportCount());
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
   const handleExportPdf = async () => {
     setIsExportingPdf(true);
     try {
       await exportReportToPdf(result);
+      // Vider la sélection Chat après export réussi
+      clearChatExport();
+      setChatExportCount(0);
     } finally {
       setIsExportingPdf(false);
     }
@@ -102,7 +135,42 @@ export function ResultTabs({ result }: ResultTabsProps) {
 
         {activeTab === "results" && (
           <div className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between">
+              {/* Bouton KPI — visible uniquement si résultat = 1 ligne × 1 colonne */}
+              {kpiCandidate ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (kpiPinned) {
+                      unpinKpi(result.id);
+                      setKpiPinned(false);
+                    } else {
+                      pinKpi({
+                        id: result.id,
+                        questionText: result.questionText,
+                        questionName: result.questionName,
+                        columnName: kpiCandidate.columnName,
+                        value: kpiCandidate.formatted,
+                        rawValue: kpiCandidate.numeric,
+                        database: result.databaseName,
+                        schema: result.schemaName,
+                        provider: result.providerName,
+                      });
+                      setKpiPinned(true);
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg border transition-colors",
+                    kpiPinned
+                      ? "bg-amber-500 text-white border-amber-500 hover:bg-amber-600"
+                      : "bg-white text-zinc-600 border-zinc-200 hover:border-amber-400 hover:text-amber-600"
+                  )}
+                >
+                  <TrendingUp className="w-4 h-4" />
+                  {kpiPinned ? "KPI épinglé ✓" : `Épingler comme KPI · ${kpiCandidate.formatted}`}
+                </button>
+              ) : <div />}
+
               <button
                 type="button"
                 onClick={() => handleDownload(result.artifactUrls.csv)}
@@ -249,16 +317,29 @@ export function ResultTabs({ result }: ResultTabsProps) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-stone-700">Insights &amp; Actions</h3>
-              <button
-                type="button"
-                onClick={() => void handleExportPdf()}
-                disabled={isExportingPdf}
-              className="flex items-center gap-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-60 px-4 py-2 rounded-xl transition-colors shadow-sm"
-              >
-              {isExportingPdf
-                ? <><Loader2 className="w-4 h-4 animate-spin" />Capture…</>
-                : <><FileDown className="w-4 h-4" />Télécharger PDF</>}
-              </button>
+              <div className="flex flex-col items-end gap-1">
+                <button
+                  type="button"
+                  onClick={() => void handleExportPdf()}
+                  disabled={isExportingPdf}
+                  className="relative flex items-center gap-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-60 px-4 py-2 rounded-xl transition-colors shadow-sm"
+                >
+                  {isExportingPdf
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Capture…</>
+                    : <><FileDown className="w-4 h-4" />Télécharger PDF</>}
+                  {chatExportCount > 0 && !isExportingPdf && (
+                    <span className="absolute -top-2 -right-2 w-5 h-5 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {chatExportCount}
+                    </span>
+                  )}
+                </button>
+                {chatExportCount > 0 && !isExportingPdf && (
+                  <p className="text-[11px] text-indigo-600 flex items-center gap-1">
+                    <ClipboardList className="w-3 h-3" />
+                    {chatExportCount} extrait{chatExportCount > 1 ? "s" : ""} Chat IA inclus
+                  </p>
+                )}
+              </div>
             </div>
             <div className="prose prose-slate max-w-none bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
               <Markdown>{result.report}</Markdown>

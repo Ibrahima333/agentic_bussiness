@@ -69,7 +69,7 @@ def generate_sql(
         question_file : chemin vers le fichier .txt contenant la question
         database_name : nom de la base de données cible
         schema_name   : nom du schéma (défaut : "public" pour PostgreSQL)
-        provider_name : provider LLM à utiliser ("gemini" ou "crok")
+        provider_name : provider LLM à utiliser ("gemini" ou "groq")
 
     Écrit le SQL généré dans ``sql/<nom_question>.sql``.
     """
@@ -121,7 +121,7 @@ def main():
         "--provider",
         type=str,
         default="gemini",
-        choices=["gemini", "crok"],
+        choices=["gemini", "groq"],
         help="Provider LLM à utiliser (défaut : gemini)",
     )
     args = parser.parse_args()

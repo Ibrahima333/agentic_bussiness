@@ -7,7 +7,7 @@ selon le nom demandé, et pour générer du texte avec gestion d'erreur centrali
 from __future__ import annotations
 
 from backend.llm.base import GenerationResult, LLMProviderError
-from backend.llm.crok import CrokProvider
+from backend.llm.groq import GroqProvider
 from backend.llm.gemini import GeminiProvider
 
 
@@ -22,14 +22,14 @@ def get_provider(provider_name: str | None):
     """Retourne une instance du provider LLM correspondant au nom donné.
 
     Args:
-        provider_name: "gemini" ou "crok" (insensible à la casse)
+        provider_name: "gemini" ou "groq" (insensible à la casse)
 
     Returns:
-        Instance de GeminiProvider ou CrokProvider
+        Instance de GeminiProvider ou GroqProvider
     """
     normalized_name = normalize_provider_name(provider_name)
-    if normalized_name == "crok":
-        return CrokProvider()
+    if normalized_name == "groq":
+        return GroqProvider()
     # Gemini est le provider par défaut
     return GeminiProvider()
 
@@ -42,7 +42,7 @@ def generate_with_fallback(prompt: str, provider_name: str | None = "gemini") ->
 
     Args:
         prompt: texte d'instruction à envoyer au modèle
-        provider_name: nom du provider à utiliser ("gemini" ou "crok")
+        provider_name: nom du provider à utiliser ("gemini" ou "groq")
 
     Returns:
         GenerationResult contenant le texte généré et les métadonnées

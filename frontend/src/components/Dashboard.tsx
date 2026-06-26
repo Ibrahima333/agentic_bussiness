@@ -1,16 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Pin, X, Maximize2, Minimize2, BarChart2, GripVertical } from "lucide-react";
-import { DashboardItem } from "../types";
+import { Pin, X, Maximize2, Minimize2, BarChart2, GripVertical, TrendingUp } from "lucide-react";
+import { DashboardItem, KpiItem } from "../types";
 import { getDashboard, saveDashboard, unpinChart } from "../lib/dashboard";
+import { getKpis } from "../lib/kpi";
+import { buildArtifactUrl } from "../lib/api";
+import { KpiCard } from "./KpiCard";
 import { cn } from "../lib/utils";
 
 export function Dashboard() {
   const [items, setItems] = useState<DashboardItem[]>([]);
+  const [kpis, setKpis] = useState<KpiItem[]>([]);
   const dragId = useRef<string | null>(null);
   const dragOver = useRef<string | null>(null);
 
   useEffect(() => {
     setItems(getDashboard());
+    setKpis(getKpis());
   }, []);
 
   /* ── Drag & Drop reorder ─────────────────────────────── */
@@ -43,7 +48,7 @@ export function Dashboard() {
   }, []);
 
   /* ── Empty state ─────────────────────────────────────── */
-  if (items.length === 0) {
+  if (items.length === 0 && kpis.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
         <div className="w-16 h-16 rounded-2xl border-2 border-zinc-200 flex items-center justify-center mx-auto mb-6">
@@ -51,11 +56,17 @@ export function Dashboard() {
         </div>
         <h2 className="text-xl font-bold text-zinc-900 mb-2">Tableau de bord vide</h2>
         <p className="text-sm text-zinc-500 max-w-xs leading-relaxed">
-          Épinglez des graphiques depuis l'onglet <strong>Chart</strong> d'une analyse.
+          Épinglez des graphiques ou des KPIs depuis vos analyses.
         </p>
-        <div className="mt-5 flex items-center gap-2 text-xs text-zinc-400 border border-zinc-200 rounded-lg px-4 py-2">
-          <Pin className="w-3.5 h-3.5" />
-          Bouton "Épingler" dans l'onglet Chart
+        <div className="mt-5 flex flex-col gap-2 items-center">
+          <div className="flex items-center gap-2 text-xs text-zinc-400 border border-zinc-200 rounded-lg px-4 py-2">
+            <Pin className="w-3.5 h-3.5" />
+            Bouton "Épingler" dans l'onglet Chart
+          </div>
+          <div className="flex items-center gap-2 text-xs text-zinc-400 border border-zinc-200 rounded-lg px-4 py-2">
+            <TrendingUp className="w-3.5 h-3.5" />
+            Bouton "Épingler comme KPI" dans l'onglet Results (1 valeur)
+          </div>
         </div>
       </div>
     );
@@ -68,10 +79,34 @@ export function Dashboard() {
         <div>
           <h2 className="text-lg font-bold text-zinc-900">Tableau de bord</h2>
           <p className="text-xs text-zinc-500 mt-0.5">
+            {kpis.length > 0 && `${kpis.length} KPI${kpis.length > 1 ? "s" : ""} · `}
             {items.length} graphique{items.length > 1 ? "s" : ""} · Glissez pour réorganiser
           </p>
         </div>
       </div>
+
+      {/* ── Section KPIs ───────────────────────────────────── */}
+      {kpis.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <TrendingUp className="w-4 h-4 text-amber-500" />
+            <h3 className="text-sm font-bold text-zinc-700">KPIs</h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {kpis.map(kpi => (
+              <KpiCard key={kpi.id} item={kpi} onUpdate={setKpis} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Graphiques ─────────────────────────────────────── */}
+      {items.length > 0 && (
+        <div className="flex items-center gap-2 mb-3">
+          <BarChart2 className="w-4 h-4 text-indigo-500" />
+          <h3 className="text-sm font-bold text-zinc-700">Graphiques</h3>
+        </div>
+      )}
 
       {/* Grille 12 colonnes */}
       <div className="grid grid-cols-12 gap-3 auto-rows-auto">
@@ -117,13 +152,13 @@ export function Dashboard() {
               </div>
             </div>
 
-            {/* Graphique Plotly */}
+            {/* Graphique Plotly — chargé via URL pour ne pas saturer localStorage */}
             <div className="h-80">
-              {item.chartHtml ? (
+              {item.chartUrl ? (
                 <iframe
                   title={`dash-${item.id}`}
-                  srcDoc={item.chartHtml}
-                  sandbox="allow-scripts"
+                  src={buildArtifactUrl(item.chartUrl)}
+                  sandbox="allow-scripts allow-same-origin"
                   className="w-full h-full border-0"
                 />
               ) : (

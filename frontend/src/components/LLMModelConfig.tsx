@@ -3,10 +3,10 @@ import { Cpu, ChevronDown, ChevronUp, CheckCircle2, XCircle, Loader2, PlugZap } 
 import { cn } from "../lib/utils";
 import { testLlmConfig, fetchLlmConfig, saveLlmConfig } from "../lib/api";
 
-type Provider = "gemini" | "crok";
+type Provider = "gemini" | "groq";
 const STORAGE_KEY = "askdata_provider";
 
-type Form = { gemini_api_key: string; crok_api_key: string };
+type Form = { gemini_api_key: string; groq_api_key: string };
 type Props = { onProviderChange?: (provider: string) => void };
 
 export default function LLMModelConfig({ onProviderChange }: Props) {
@@ -14,7 +14,7 @@ export default function LLMModelConfig({ onProviderChange }: Props) {
   const [provider, setProvider] = useState<Provider>(
     () => (localStorage.getItem(STORAGE_KEY) as Provider) ?? "gemini"
   );
-  const [form, setForm] = useState<Form>({ gemini_api_key: "", crok_api_key: "" });
+  const [form, setForm] = useState<Form>({ gemini_api_key: "", groq_api_key: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; message: string } | null>(null);
@@ -29,7 +29,7 @@ export default function LLMModelConfig({ onProviderChange }: Props) {
         if (cancelled) return;
         setForm({
           gemini_api_key: cfg.config?.gemini_api_key ?? "",
-          crok_api_key: cfg.config?.crok_api_key ?? "",
+          groq_api_key: cfg.config?.groq_api_key ?? "",
         });
         if (cfg.lastTest) {
           const ok = Boolean(cfg.lastTest.success);
@@ -50,14 +50,14 @@ export default function LLMModelConfig({ onProviderChange }: Props) {
     onProviderChange?.(p);
   };
 
-  const currentKey = provider === "gemini" ? form.gemini_api_key : form.crok_api_key;
+  const currentKey = provider === "gemini" ? form.gemini_api_key : form.groq_api_key;
 
   const handleTest = async () => {
     setIsLoading(true);
     setStatus(null);
     const payload = provider === "gemini"
       ? { gemini_api_key: form.gemini_api_key }
-      : { crok_api_key: form.crok_api_key };
+      : { groq_api_key: form.groq_api_key };
     try {
       const result = await testLlmConfig(payload);
       const ok = Boolean(result.success);
@@ -117,7 +117,7 @@ export default function LLMModelConfig({ onProviderChange }: Props) {
         <div className="border-t border-zinc-700/60 p-4 space-y-3">
           {/* Toggle provider */}
           <div className="flex gap-1 p-1 bg-zinc-900 rounded-md">
-            {(["gemini", "crok"] as Provider[]).map(p => (
+            {(["gemini", "groq"] as Provider[]).map(p => (
               <button
                 key={p}
                 type="button"
@@ -149,15 +149,15 @@ export default function LLMModelConfig({ onProviderChange }: Props) {
           )}
 
           {/* Groq */}
-          {provider === "crok" && (
+          {provider === "groq" && (
             <div className="space-y-1">
               <label className="text-xs font-semibold text-zinc-400">Groq API Key</label>
               <div className="text-xs text-zinc-500 mb-1">🔗 api.groq.com</div>
               <input
                 type="password"
                 className="w-full bg-zinc-900/60 border border-zinc-700 text-zinc-100 text-sm rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-indigo-500"
-                value={form.crok_api_key}
-                onChange={e => setForm(f => ({ ...f, crok_api_key: e.target.value }))}
+                value={form.groq_api_key}
+                onChange={e => setForm(f => ({ ...f, groq_api_key: e.target.value }))}
                 placeholder="gsk_…"
                 disabled={isLoading}
                 autoComplete="off"

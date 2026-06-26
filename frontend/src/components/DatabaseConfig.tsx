@@ -99,7 +99,16 @@ export default function DatabaseConfig({ api, onAfterConnect }: Props) {
         setStatus({ ok: false, message: test.message ?? "Connexion échouée" });
         return;
       }
-      await api.connectDbConfig(payload);
+      const connectResult = await api.connectDbConfig(payload);
+      // Vérifier explicitement le succès dans le corps de la réponse
+      // (l'endpoint retourne toujours HTTP 200, même en cas d'échec de sauvegarde)
+      const saveOk = connectResult?.connection?.success !== false;
+      if (!saveOk) {
+        const saveMsg = connectResult?.connection?.message ?? "Erreur lors de la sauvegarde de la configuration";
+        setConnected(false);
+        setStatus({ ok: false, message: saveMsg });
+        return;
+      }
       setConnected(true);
       setStatus({ ok: true, message: `Connecté à ${form.database} ✓` });
       setIsOpen(false);

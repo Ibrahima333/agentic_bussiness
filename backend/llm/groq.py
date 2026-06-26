@@ -1,11 +1,8 @@
 """Provider LLM Groq via l'interface OpenAI-compatible (backend Agentic BI).
 
 Utilise ``urllib`` (sans dépendance externe) pour appeler l'API Groq.
-Le provider est nommé "crok" dans l'application pour éviter la confusion
-avec le mot-clé "groq" et permettre une URL personnalisable.
-
 La clé API est lue depuis le gestionnaire de configuration LLM
-(runtime ou variable d'environnement CROK_API_KEY).
+(runtime ou variable d'environnement GROQ_API_KEY).
 """
 
 from __future__ import annotations
@@ -23,10 +20,10 @@ GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
 
-class CrokProvider(LLMProvider):
+class GroqProvider(LLMProvider):
     """Provider LLM utilisant l'API Groq (interface OpenAI-compatible)."""
 
-    name = "crok"
+    name = "groq"
 
     def generate(self, prompt: str) -> GenerationResult:
         """Génère du texte via l'API Groq.
@@ -44,15 +41,15 @@ class CrokProvider(LLMProvider):
         from backend.llm_config import LLMConfigManager
 
         mgr = LLMConfigManager.instance()
-        api_key = mgr.get_api_key("crok")
+        api_key = mgr.get_api_key("groq")
 
         if not api_key:
             raise LLMProviderError(
-                "Clé API Groq non configurée. Renseignez-la via l'interface ou CROK_API_KEY."
+                "Clé API Groq non configurée. Renseignez-la via l'interface ou GROQ_API_KEY."
             )
 
         # URL configurable (utile pour les proxies ou instances privées)
-        api_url = mgr.get_api_url("crok") or GROQ_BASE_URL
+        api_url = mgr.get_api_url("groq") or GROQ_BASE_URL
         endpoint = api_url.rstrip("/") + "/chat/completions"
 
         # Construction de la requête JSON (format chat OpenAI)

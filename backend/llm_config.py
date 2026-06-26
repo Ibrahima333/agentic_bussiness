@@ -2,7 +2,7 @@
 
 La config peut être fournie de différentes façons, dans cet ordre de priorité :
 1) Config runtime persistée par le frontend dans ``runtime/llm_config.json``.
-2) Variables d'environnement (``GEMINI_API_KEY``, ``CROK_API_KEY``, etc.).
+2) Variables d'environnement (``GEMINI_API_KEY``, ``GROQ_API_KEY``, etc.).
 3) Valeurs vides (le provider échouera si aucune clé n'est disponible).
 
 Le module expose :class:`LLMConfig` (dataclass) et
@@ -22,7 +22,7 @@ from typing import Any
 CONFIG_FILE = Path(os.getenv("LLM_RUNTIME_CONFIG", "runtime/llm_config.json"))
 
 # Providers LLM supportés
-SUPPORTED_PROVIDERS = ("gemini", "crok")
+SUPPORTED_PROVIDERS = ("gemini", "groq")
 
 
 @dataclass
@@ -30,8 +30,8 @@ class LLMConfig:
     """Clés API pour les providers LLM supportés."""
 
     gemini_api_key: str = ""   # Clé API Google Gemini
-    crok_api_key: str = ""     # Clé API Groq (provider "crok")
-    crok_api_url: str = ""     # URL de base Groq (optionnel, défaut : api.groq.com)
+    groq_api_key: str = ""     # Clé API Groq (provider "groq")
+    groq_api_url: str = ""     # URL de base Groq (optionnel, défaut : api.groq.com)
     extra: dict[str, Any] = field(default_factory=dict)  # Champs additionnels
 
     def masked(self) -> dict[str, Any]:
@@ -39,11 +39,11 @@ class LLMConfig:
         data = asdict(self)
         if data.get("gemini_api_key"):
             data["gemini_api_key"] = "********"
-        if data.get("crok_api_key"):
-            data["crok_api_key"] = "********"
+        if data.get("groq_api_key"):
+            data["groq_api_key"] = "********"
         # Masque l'URL Groq uniquement si la clé est absente (URL seule est sensible)
-        if data.get("crok_api_url") and not data.get("crok_api_key"):
-            data["crok_api_url"] = "********"
+        if data.get("groq_api_url") and not data.get("groq_api_key"):
+            data["groq_api_url"] = "********"
         return data
 
     def to_dict(self) -> dict[str, Any]:
@@ -99,7 +99,7 @@ class LLMConfigManager:
         with self._state_lock:
             data = self._config.to_dict()
             for key, value in payload.items():
-                if key in {"gemini_api_key", "crok_api_key", "crok_api_url"}:
+                if key in {"gemini_api_key", "groq_api_key", "groq_api_url"}:
                     # Conversion en chaîne, None → chaîne vide
                     data[key] = "" if value is None else str(value)
                 elif key == "extra" and isinstance(value, dict):
@@ -121,7 +121,7 @@ class LLMConfigManager:
         # Correspondance provider → clé API
         key_map = {
             "gemini": config.gemini_api_key,
-            "crok": config.crok_api_key,
+            "groq": config.groq_api_key,
         }
         key = key_map.get(provider, "")
         # Fallback sur la variable d'environnement si la clé runtime est vide
@@ -137,9 +137,9 @@ class LLMConfigManager:
         if provider not in SUPPORTED_PROVIDERS:
             return ""
         config = self.get()
-        # Seul Groq/crok dispose d'une URL configurable
+        # Seul Groq dispose d'une URL configurable
         url_map = {
-            "crok": config.crok_api_url,
+            "groq": config.groq_api_url,
         }
         url = url_map.get(provider, "")
         if not url:
@@ -187,10 +187,10 @@ class LLMConfigManager:
         Retourne None si aucune variable pertinente n'est définie.
         """
         gemini_key = os.getenv("GEMINI_API_KEY", "")
-        crok_key = os.getenv("CROK_API_KEY", "")
-        crok_url = os.getenv("CROK_API_URL", "")
-        if gemini_key or crok_key or crok_url:
-            return LLMConfig(gemini_api_key=gemini_key, crok_api_key=crok_key, crok_api_url=crok_url)
+        groq_key = os.getenv("GROQ_API_KEY", "")
+        groq_url = os.getenv("GROQ_API_URL", "")
+        if gemini_key or groq_key or groq_url:
+            return LLMConfig(gemini_api_key=gemini_key, groq_api_key=groq_key, groq_api_url=groq_url)
         return None
 
     def _save_to_disk(self) -> None:

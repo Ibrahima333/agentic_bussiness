@@ -65,7 +65,7 @@ def generate_insights_actions(question_file: Path, provider_name: str = "gemini"
 
     Args:
         question_file : chemin vers le fichier .txt de la question originale
-        provider_name : provider LLM à utiliser ("gemini" ou "crok")
+        provider_name : provider LLM à utiliser ("gemini" ou "groq")
 
     Écrit le rapport dans ``outputs/<question_name>/<question_name>.md``.
     """
@@ -150,7 +150,7 @@ def main():
         "--provider",
         type=str,
         default="gemini",
-        choices=["gemini", "crok"],
+        choices=["gemini", "groq"],
         help="Provider LLM à utiliser (défaut : gemini)",
     )
 

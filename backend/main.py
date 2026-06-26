@@ -166,7 +166,7 @@ def schema_explore(
 @app.get("/api/providers")
 def providers() -> dict:
     """Retourne la liste des providers LLM supportés."""
-    return {"providers": ["gemini", "crok"]}
+    return {"providers": ["gemini", "groq"]}
 
 
 # ── Routes de configuration LLM ──────────────────────────────────────────────
@@ -196,7 +196,7 @@ def _test_gemini_key(api_key: str) -> tuple[bool, str]:
         return False, f"Impossible de joindre Gemini: {exc.reason}"
 
 
-def _test_crok_key(api_key: str, api_url: str = "") -> tuple[bool, str]:
+def _test_groq_key(api_key: str, api_url: str = "") -> tuple[bool, str]:
     """Teste la connexion Groq avec un micro appel de complétion."""
     if not api_key:
         return False, "Clé API Groq manquante"
@@ -247,7 +247,7 @@ def llm_config_test(payload: dict) -> dict:
     mgr = LLMConfigManager.instance()
     try:
         gemini_key = str(payload.get("gemini_api_key", "") or "")
-        crok_key = str(payload.get("crok_api_key", "") or "")
+        groq_key = str(payload.get("groq_api_key", "") or "")
 
         # Test de la clé Gemini en priorité
         if gemini_key:
@@ -258,11 +258,11 @@ def llm_config_test(payload: dict) -> dict:
             return {"success": ok, "message": msg, "lastTest": mgr.last_test()}
 
         # Sinon test de la clé Groq
-        if crok_key:
-            crok_url = str(payload.get("crok_api_url", "") or "")
-            ok, msg = _test_crok_key(crok_key, crok_url)
+        if groq_key:
+            groq_url = str(payload.get("groq_api_url", "") or "")
+            ok, msg = _test_groq_key(groq_key, groq_url)
             if ok:
-                mgr.update({"crok_api_key": crok_key, "crok_api_url": crok_url}, persist=False)
+                mgr.update({"groq_api_key": groq_key, "groq_api_url": groq_url}, persist=False)
             mgr.record_test(ok, msg)
             return {"success": ok, "message": msg, "lastTest": mgr.last_test()}
 
@@ -300,23 +300,76 @@ def db_config_get() -> dict:
     }
 
 
+def _test_db_connection(payload: dict) -> tuple[bool, str]:
+    """Tente une vraie connexion à la base de données avec les credentials fournis.
+
+    Retourne (success, message). Ne propage jamais d'exception.
+    """
+    try:
+        db_type = str(payload.get("db_type", "postgresql")).lower()
+        host     = str(payload.get("host", "localhost"))
+        raw_port = payload.get("port", 3306 if db_type == "mysql" else 5432)
+        try:
+            port = int(raw_port)
+        except (TypeError, ValueError):
+            return False, f"Port invalide : '{raw_port}' n'est pas un entier"
+        user     = str(payload.get("user", ""))
+        password = str(payload.get("password", ""))
+        database = str(payload.get("database", "") or "")
+
+        if not host:
+            return False, "Hôte manquant"
+        if not user:
+            return False, "Utilisateur manquant"
+        if not database:
+            return False, "Nom de la base manquant"
+
+        # Base cible pour le test : la base configurée ou une base système
+        test_db = database if database else ("mysql" if db_type == "mysql" else "postgres")
+
+        if db_type == "mysql":
+            import mysql.connector
+            conn = mysql.connector.connect(
+                host=host, port=port, user=user, password=password,
+                database=test_db, connect_timeout=5,
+            )
+            conn.close()
+            return True, f"Connexion MySQL reussie ({host}:{port})"
+        else:
+            import psycopg2
+            conn = psycopg2.connect(
+                host=host, port=port, user=user, password=password,
+                dbname=test_db, connect_timeout=5,
+            )
+            conn.close()
+            return True, f"Connexion PostgreSQL reussie ({host}:{port})"
+
+    except Exception as exc:
+        msg = str(exc)
+        # Simplifier les messages d'erreur courants
+        if "Access denied" in msg or "password" in msg.lower():
+            return False, "Mot de passe incorrect ou acces refuse"
+        if "Unknown database" in msg or "does not exist" in msg:
+            database = str(payload.get("database", "") or "")
+            return False, f"Base de donnees '{database}' introuvable"
+        if "Can't connect" in msg or "Connection refused" in msg or "nodename" in msg:
+            host = str(payload.get("host", "?"))
+            raw_port = payload.get("port", "?")
+            return False, f"Impossible de joindre le serveur {host}:{raw_port}"
+        if "timeout" in msg.lower():
+            host = str(payload.get("host", "?"))
+            raw_port = payload.get("port", "?")
+            return False, f"Delai depasse - verifiez l'adresse {host}:{raw_port}"
+        return False, msg[:300]
+
+
 @app.post("/api/db-config/test")
 def db_config_test(payload: dict) -> dict:
-    """Valide la structure de la configuration DB et enregistre un test."""
-    # Validation rapide de la structure via le dataclass DatabaseConfig
-    try:
-        cfg = DatabaseConfig(**payload)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
+    """Teste la connexion a la base de donnees avec les credentials fournis."""
     mgr = DatabaseConfigManager.instance()
-    try:
-        mgr.update(payload, persist=False)
-        mgr.record_test(True, "Connection successful")
-        return {"success": True, "message": "Connection successful"}
-    except Exception as exc:
-        mgr.record_test(False, str(exc))
-        return {"success": False, "message": str(exc)}
+    ok, msg = _test_db_connection(payload)
+    mgr.record_test(ok, msg)
+    return {"success": ok, "message": msg}
 
 
 @app.post("/api/db-config/save")
@@ -325,7 +378,7 @@ def db_config_save(payload: dict) -> dict:
     mgr = DatabaseConfigManager.instance()
     try:
         cfg = mgr.update(payload, persist=True)
-        mgr.record_test(True, "Configuration saved")
+        mgr.record_test(True, "Configuration sauvegardee")
         return {"config": cfg.to_dict(), "lastTest": mgr.last_test()}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -333,23 +386,27 @@ def db_config_save(payload: dict) -> dict:
 
 @app.post("/api/db-config/connect")
 def db_config_connect(payload: dict) -> dict:
-    """Persiste la configuration DB et confirme la connexion au frontend."""
+    """Teste la connexion puis persiste la configuration si elle reussit."""
     mgr = DatabaseConfigManager.instance()
-    try:
-        cfg = mgr.update(payload, persist=True)
-        mgr.record_test(True, "Connected")
-        return {
-            "connection": {"success": True, "message": "Connected"},
-            "lastTest": mgr.last_test(),
-            "config": cfg.to_dict(),
-        }
-    except Exception as exc:
-        mgr.record_test(False, str(exc))
-        return {
-            "connection": {"success": False, "message": str(exc)},
-            "lastTest": mgr.last_test(),
-            "config": mgr.get().to_dict(),
-        }
+
+    # 1. Tester la vraie connexion avant de sauvegarder
+    ok, msg = _test_db_connection(payload)
+
+    if ok:
+        # 2. Sauvegarder uniquement si la connexion est etablie
+        try:
+            cfg = mgr.update(payload, persist=True)
+        except Exception as exc:
+            ok, msg = False, str(exc)
+            mgr.record_test(ok, msg)
+            return {"connection": {"success": False, "message": msg}, "lastTest": mgr.last_test()}
+
+    mgr.record_test(ok, msg)
+    return {
+        "connection": {"success": ok, "message": msg},
+        "lastTest": mgr.last_test(),
+        "config": mgr.get_masked(),
+    }
 
 
 # ── Routes historique et résultats ────────────────────────────────────────────
@@ -388,7 +445,7 @@ def pipeline_run(payload: dict) -> dict:
     - artifactName      : nom optionnel pour les artefacts générés
     - databaseName      : base de données cible
     - schemaName        : schéma cible
-    - providerName      : provider LLM ("gemini" ou "crok")
+    - providerName      : provider LLM ("gemini" ou "groq")
     - overwriteExisting : écraser si le nom existe déjà
     """
     try:
@@ -428,6 +485,115 @@ def artifact(question_name: str, artifact_type: str):
         result = load_result(question_name)
         return JSONResponse(result["metadata"])
 
-    # Tous les autres artefacts sont servis comme fichiers statiques
+    # Le graphique HTML doit être servi en inline pour s'afficher dans une iframe
+    # (Content-Disposition: attachment forcerait le téléchargement)
+    if artifact_type == "chart":
+        return FileResponse(artifact_path, media_type=media_type)
+
+    # Les autres artefacts (sql, csv, report) sont téléchargeables directement
     return FileResponse(artifact_path, media_type=media_type, filename=artifact_path.name)
 
+
+# ── KPIs ──────────────────────────────────────────────────────────────────────
+
+@app.post("/api/kpi/refresh/{question_name}")
+def kpi_refresh(question_name: str) -> dict:
+    """Ré-exécute le SQL persisté et retourne la valeur KPI mise à jour.
+
+    Ne fait aucun appel LLM : lit le fichier SQL existant et le rejoue
+    directement sur la base configurée. Idéal pour rafraîchir un KPI
+    sans re-générer toute l'analyse.
+    """
+    from pathlib import Path
+    from backend.utils.db_utils import run_query
+
+    sql_file = Path(f"sql/{question_name}.sql")
+    if not sql_file.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"SQL introuvable pour '{question_name}'. Relancez l'analyse une fois."
+        )
+
+    sql = sql_file.read_text(encoding="utf-8").strip()
+    if not sql:
+        raise HTTPException(status_code=400, detail="Fichier SQL vide.")
+
+    # Lire la base active depuis la config runtime
+    db_cfg = DatabaseConfigManager.instance().get()
+    db_name = db_cfg.database
+    if not db_name:
+        raise HTTPException(status_code=400, detail="Aucune base de données configurée.")
+
+    try:
+        columns, rows = run_query(sql, db_name)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Erreur SQL : {exc}") from exc
+
+    if not rows:
+        return {"columns": columns, "values": {}, "rowCount": 0}
+
+    first_row = dict(zip(columns, rows[0]))
+    return {
+        "columns": list(columns),
+        "values": first_row,
+        "rowCount": len(rows),
+    }
+
+
+
+# ── Mode Chat Analytique ──────────────────────────────────────────────────────
+
+@app.post("/api/chat/message")
+def chat_message(payload: dict) -> dict:
+    """Endpoint du chat analytique conversationnel.
+
+    Reçoit un message utilisateur + historique de conversation,
+    retourne une réponse du data analyst IA sans générer de SQL.
+
+    Body attendu :
+        message  : str  — dernier message de l'utilisateur
+        database : str  — base de données active
+        schema   : str  — schéma actif
+        provider : str  — provider LLM ("gemini" ou "groq")
+        history  : list — [{ role: "user"|"assistant", content: str }, ...]
+    """
+    from backend.scripts.chat_analyst import (
+        build_messages,
+        build_system_prompt,
+        load_schema_markdown,
+    )
+
+    message  = str(payload.get("message", "")).strip()
+    database = str(payload.get("database", "")).strip()
+    schema   = str(payload.get("schema", "")).strip()
+    provider = str(payload.get("provider", "gemini")).strip()
+    history  = payload.get("history", [])
+
+    if not message:
+        raise HTTPException(status_code=400, detail="Message vide")
+
+    # Chargement du schéma (fichier existant ou vide)
+    schema_md = load_schema_markdown(database, schema)
+
+    # Construction du prompt
+    system_prompt = build_system_prompt(database, schema, schema_md)
+    messages = build_messages(system_prompt, history, message)
+
+    # Appel LLM — on passe directement les messages au provider
+    try:
+        from backend.llm.factory import get_provider
+        prov = get_provider(provider)
+
+        # Construire un prompt texte à partir des messages
+        # (nos providers utilisent une API texte simple)
+        full_prompt = "\n\n".join(
+            f"[{m['role'].upper()}]\n{m['content']}"
+            for m in messages
+        )
+        result = prov.generate(full_prompt)
+        response_text = result.text.strip()
+
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return {"response": response_text}

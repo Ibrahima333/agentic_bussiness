@@ -1,12 +1,16 @@
 # ── docker-compose.yml — AskData ─────────────────────────────────────────────
 # Deux services :
 #   - backend  : API FastAPI (Python)  → accessible sur http://localhost:8009
-#   - frontend : React + Nginx         → accessible sur http://localhost:3000
+#   - frontend : React + Nginx (HTTPS) → accessible sur https://localhost:3000
 #
 # Architecture des appels API :
-#   Navigateur → http://localhost:3000/api/...
-#       → Nginx (frontend) proxifie vers http://backend:8000/api/...
+#   Navigateur → https://localhost:3000/api/...
+#       → Nginx (frontend, TLS terminé) proxifie vers http://backend:8000/api/...
 #       → FastAPI répond
+#
+# HTTPS : certificat auto-signé généré au build. Le navigateur affichera un
+# avertissement à la première ouverture → cliquer "Continuer quand même".
+# En production, monter un vrai certificat via volumes (voir frontend/Dockerfile).
 #
 # Avantage : pas de CORS, URL relative dans le code React, tout passe par le port 3000.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -40,9 +44,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    # Port 3000 : point d'entrée principal de l'application
+    # Port 3000 : point d'entrée HTTPS principal → https://localhost:3000
+    # Port 3080 : redirection HTTP → HTTPS (optionnel, pratique en prod)
     ports:
-      - "3000:80"
+      - "3000:443"
+      - "3080:80"
     # Le frontend démarre après le backend
     depends_on:
       - backend
