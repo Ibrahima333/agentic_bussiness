@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { TrendingUp, TrendingDown, Minus, RefreshCw, X, Database } from "lucide-react";
 import { cn } from "../lib/utils";
 import { KpiItem } from "../types";
-import { formatKpiValue, computeDelta, updateKpiValue, unpinKpi } from "../lib/kpi";
-import { refreshKpi } from "../lib/api";
+import { formatKpiValue, computeDelta } from "../lib/kpi";
+import { refreshKpi, unpinUserKpi, pinUserKpi } from "../lib/api";
 
 interface Props {
   item: KpiItem;
@@ -27,8 +27,14 @@ export function KpiCard({ item, onUpdate }: Props) {
       }
       const raw = data.values[item.columnName] ?? Object.values(data.values)[0];
       const { formatted, numeric } = formatKpiValue(raw);
-      const next = updateKpiValue(item.id, numeric, formatted);
-      onUpdate(next);
+      const updated = await pinUserKpi({
+        ...item,
+        previousValue: item.rawValue,
+        rawValue: numeric,
+        value: formatted,
+        lastUpdated: Date.now(),
+      });
+      onUpdate(updated.kpis as KpiItem[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors du refresh");
     } finally {
@@ -36,8 +42,9 @@ export function KpiCard({ item, onUpdate }: Props) {
     }
   };
 
-  const handleRemove = () => {
-    onUpdate(unpinKpi(item.id));
+  const handleRemove = async () => {
+    const data = await unpinUserKpi(item.id);
+    onUpdate(data.kpis as KpiItem[]);
   };
 
   const lastUpdatedLabel = new Date(item.lastUpdated).toLocaleString("fr-FR", {

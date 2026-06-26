@@ -4,12 +4,24 @@ import { ChatArea } from "./components/ChatArea";
 import { PipelineInput } from "./components/PipelineInput";
 import { Dashboard } from "./components/Dashboard";
 import { QuickChat } from "./components/QuickChat";
+import { Login } from "./components/Login";
+import { AdminPanel } from "./components/AdminPanel";
 import { AppState } from "./types";
 import { clearHistory, fetchConfig, fetchHistory, fetchResult } from "./lib/api";
-import { MessageSquare, LayoutDashboard, MessagesSquare } from "lucide-react";
+import { MessageSquare, LayoutDashboard, MessagesSquare, Shield, LogOut } from "lucide-react";
+import { clearAuth, getUser, isAuthenticated } from "./lib/auth";
 
 export default function App() {
-  const [view, setView] = useState<"chat" | "quickchat" | "dashboard">("chat");
+  const [authed, setAuthed]       = useState(() => isAuthenticated());
+  const [currentUser, setCurrentUser] = useState(() => getUser());
+  const [view, setView] = useState<"chat" | "quickchat" | "dashboard" | "admin">("chat");
+
+  // Déconnexion automatique si le backend répond 401
+  useEffect(() => {
+    const handler = () => { setAuthed(false); setCurrentUser(null); };
+    window.addEventListener("auth:logout", handler);
+    return () => window.removeEventListener("auth:logout", handler);
+  }, []);
   const activeResultRequestRef = useRef<string | null>(null);
   const [state, setState] = useState<AppState>({
     databases: [],
@@ -58,6 +70,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!authed) return;
     let cancelled = false;
 
     async function bootstrap() {
@@ -86,7 +99,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [refreshConfiguration]);
+  }, [refreshConfiguration, authed]);
 
   useEffect(() => {
     if (!state.selectedDatabase) {
@@ -187,6 +200,16 @@ export default function App() {
     }));
   }, []);
 
+  function handleLogout() {
+    clearAuth();
+    setAuthed(false);
+    setCurrentUser(null);
+  }
+
+  if (!authed) {
+    return <Login onLogin={() => { setAuthed(true); setCurrentUser(getUser()); }} />;
+  }
+
   return (
     <div className="flex h-screen bg-white font-sans text-zinc-900 overflow-hidden">
       <Sidebar
@@ -234,6 +257,36 @@ export default function App() {
             <LayoutDashboard className="w-4 h-4" />
             Dashboard
           </button>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Bouton Admin (admin uniquement) */}
+          {currentUser?.role === "admin" && (
+            <button
+              type="button"
+              onClick={() => setView("admin")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                view === "admin"
+                  ? "bg-violet-100 text-violet-700"
+                  : "text-zinc-500 hover:text-zinc-800"
+              }`}
+            >
+              <Shield className="w-4 h-4" />
+              Admin
+            </button>
+          )}
+
+          {/* Email + Logout */}
+          <span className="text-xs text-zinc-400 px-2 hidden sm:block">{currentUser?.email}</span>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-zinc-500 hover:text-red-600 transition-colors"
+            title="Se déconnecter"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </nav>
 
         {/* Contenu selon la vue */}
@@ -251,6 +304,7 @@ export default function App() {
           />
         )}
         {view === "dashboard" && <Dashboard />}
+        {view === "admin"     && <AdminPanel />}
       </main>
     </div>
   );

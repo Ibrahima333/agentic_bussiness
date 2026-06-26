@@ -3,11 +3,10 @@ import { PipelineResult } from "../types";
 import { Code2, Table, Database, BarChart3, FileText, Terminal, Download, FileDown, Loader2, Pin, PinOff, ClipboardList } from "lucide-react";
 import { cn } from "../lib/utils";
 import Markdown from "react-markdown";
-import { buildArtifactUrl } from "../lib/api";
+import { buildArtifactUrl, pinUserChart, unpinUserChart, pinUserKpi, unpinUserKpi } from "../lib/api";
 import { exportReportToPdf } from "../lib/exportPdf";
-import { pinChart, unpinChart, isPinned } from "../lib/dashboard";
 import { getChatExportCount, clearChatExport } from "../lib/chatExport";
-import { pinKpi, isKpiPinned, unpinKpi, formatKpiValue } from "../lib/kpi";
+import { formatKpiValue } from "../lib/kpi";
 import { TrendingUp } from "lucide-react";
 
 interface ResultTabsProps {
@@ -19,9 +18,9 @@ type TabType = "sql" | "results" | "metadata" | "chart" | "report" | "logs";
 export function ResultTabs({ result }: ResultTabsProps) {
   const [activeTab, setActiveTab] = useState<TabType>("results");
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [pinned, setPinned] = useState(() => isPinned(result.id));
+  const [pinned, setPinned] = useState(false);
   const [chatExportCount, setChatExportCount] = useState(() => getChatExportCount());
-  const [kpiPinned, setKpiPinned] = useState(() => isKpiPinned(result.id));
+  const [kpiPinned, setKpiPinned] = useState(false);
 
   // Détection automatique : résultat = 1 ligne × 1 colonne → candidat KPI
   const kpiCandidate = (() => {
@@ -33,27 +32,23 @@ export function ResultTabs({ result }: ResultTabsProps) {
     return { columnName: col, formatted, numeric };
   })();
 
-  // Sync les états épinglé quand l'utilisateur change de résultat dans l'historique
+  // Sync les états épinglé quand l'utilisateur change de résultat
   useEffect(() => {
-    setPinned(isPinned(result.id));
-    setKpiPinned(isKpiPinned(result.id));
+    setPinned(false);
+    setKpiPinned(false);
   }, [result.id]);
 
-  const handlePin = () => {
+  const handlePin = async () => {
     if (pinned) {
-      unpinChart(result.id);
+      await unpinUserChart(result.id);
       setPinned(false);
     } else {
-      // On stocke l'URL de l'artefact (pas le HTML brut) pour éviter
-      // de saturer localStorage avec les ~3 Mo de Plotly embarqué
-      pinChart({
+      await pinUserChart({
         id: result.id,
         questionName: result.questionName,
         questionText: result.questionText,
         chartUrl: result.artifactUrls.chart,
-        database: result.databaseName,
-        schema: result.schemaName,
-        provider: result.providerName,
+        pinnedAt: Date.now(),
       });
       setPinned(true);
     }
@@ -140,12 +135,12 @@ export function ResultTabs({ result }: ResultTabsProps) {
               {kpiCandidate ? (
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (kpiPinned) {
-                      unpinKpi(result.id);
+                      await unpinUserKpi(result.id);
                       setKpiPinned(false);
                     } else {
-                      pinKpi({
+                      await pinUserKpi({
                         id: result.id,
                         questionText: result.questionText,
                         questionName: result.questionName,
@@ -155,6 +150,8 @@ export function ResultTabs({ result }: ResultTabsProps) {
                         database: result.databaseName,
                         schema: result.schemaName,
                         provider: result.providerName,
+                        pinnedAt: Date.now(),
+                        lastUpdated: Date.now(),
                       });
                       setKpiPinned(true);
                     }

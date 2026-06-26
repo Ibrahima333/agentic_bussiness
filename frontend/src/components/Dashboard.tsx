@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pin, X, Maximize2, Minimize2, BarChart2, GripVertical, TrendingUp } from "lucide-react";
 import { DashboardItem, KpiItem } from "../types";
-import { getDashboard, saveDashboard, unpinChart } from "../lib/dashboard";
-import { getKpis } from "../lib/kpi";
-import { buildArtifactUrl } from "../lib/api";
+import { buildArtifactUrl, fetchUserDashboard, unpinUserChart, fetchUserKpis } from "../lib/api";
 import { KpiCard } from "./KpiCard";
 import { cn } from "../lib/utils";
 
@@ -14,8 +12,8 @@ export function Dashboard() {
   const dragOver = useRef<string | null>(null);
 
   useEffect(() => {
-    setItems(getDashboard());
-    setKpis(getKpis());
+    void fetchUserDashboard().then(d => setItems(d.dashboard as DashboardItem[]));
+    void fetchUserKpis().then(d => setKpis(d.kpis as KpiItem[]));
   }, []);
 
   /* ── Drag & Drop reorder ─────────────────────────────── */
@@ -28,23 +26,21 @@ export function Dashboard() {
     const to   = arr.findIndex(i => i.id === dragOver.current);
     const [moved] = arr.splice(from, 1);
     arr.splice(to, 0, moved);
-    saveDashboard(arr);
     setItems(arr);
     dragId.current = null;
     dragOver.current = null;
   };
 
   /* ── Actions ─────────────────────────────────────────── */
-  const handleRemove = useCallback((id: string) => {
-    setItems(unpinChart(id));
+  const handleRemove = useCallback(async (id: string) => {
+    const data = await unpinUserChart(id);
+    setItems(data.dashboard as DashboardItem[]);
   }, []);
 
   const handleToggleSize = useCallback((id: string) => {
-    const next = getDashboard().map(item =>
+    setItems(prev => prev.map(item =>
       item.id === id ? { ...item, w: item.w === 6 ? 12 : 6 } : item
-    );
-    saveDashboard(next);
-    setItems(next);
+    ));
   }, []);
 
   /* ── Empty state ─────────────────────────────────────── */

@@ -17,6 +17,39 @@
 
 services:
 
+  # ── MySQL Auth — base dédiée aux utilisateurs, KPIs, dashboard, historique ───
+  mysql-auth:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${AUTH_DB_ROOT_PASSWORD:-askdata_root_secret}
+      MYSQL_DATABASE: askdata_auth
+      MYSQL_USER: ${AUTH_DB_USER:-askdata}
+      MYSQL_PASSWORD: ${AUTH_DB_PASSWORD:-askdata_secret}
+    volumes:
+      - mysql_auth_data:/var/lib/mysql
+    networks:
+      - askdata-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "--password=${AUTH_DB_ROOT_PASSWORD:-askdata_root_secret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Adminer — interface web légère pour inspecter mysql-auth ─────────────────
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql-auth:
+        condition: service_healthy
+    networks:
+      - askdata-network
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql-auth
+
   # ── Backend FastAPI ──────────────────────────────────────────────────────────
   backend:
     build:
@@ -36,6 +69,9 @@ services:
       - ./dataviz:/app/dataviz     # Scripts de visualisation Python
       - ./outputs:/app/outputs     # Résultats (CSV, HTML, Markdown)
       - ./runtime:/app/runtime     # Config runtime (db_config.json, llm_config.json)
+    depends_on:
+      mysql-auth:
+        condition: service_healthy
     networks:
       - askdata-network
 
@@ -56,7 +92,10 @@ services:
       - askdata-network
 
 # ── Réseau interne Docker ────────────────────────────────────────────────────
-# Permet à Nginx (frontend) de joindre FastAPI (backend) via http://backend:8000
 networks:
   askdata-network:
     driver: bridge
+
+# ── Volumes persistants ──────────────────────────────────────────────────────
+volumes:
+  mysql_auth_data:

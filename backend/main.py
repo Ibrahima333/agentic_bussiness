@@ -12,10 +12,9 @@ import json as _json
 import urllib.error
 import urllib.request
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
-
 
 # Gestionnaires de configuration DB et LLM
 from backend.db_config import DatabaseConfig, DatabaseConfigManager
@@ -33,6 +32,15 @@ from backend.service import (
     run_pipeline,
 )
 
+# Auth
+from backend.auth.database import init_db
+from backend.auth.middleware import get_current_user, require_admin
+from backend.auth.router import router as auth_router, seed_admin
+from backend.repositories import analyses as analyses_repo
+from backend.repositories import kpis as kpis_repo
+from backend.repositories import dashboard as dashboard_repo
+from backend.repositories import llm_config as llm_config_repo
+
 
 # ── Création de l'application FastAPI ────────────────────────────────────────
 app = FastAPI(
@@ -49,6 +57,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Initialisation auth au démarrage ─────────────────────────────────────────
+@app.on_event("startup")
+def on_startup() -> None:
+    init_db()
+    seed_admin()
+    # Synchroniser la config LLM depuis MySQL → fichier runtime
+    try:
+        db_cfg = llm_config_repo.get_llm_config()
+        if db_cfg:
+            LLMConfigManager.instance().update({
+                k: v for k, v in db_cfg.items() if v
+            }, persist=True)
+            print("[llm] Config LLM synchronisée depuis MySQL.")
+    except Exception as exc:
+        print(f"[llm] Sync MySQL→runtime ignorée : {exc}")
+
+# ── Router auth ───────────────────────────────────────────────────────────────
+app.include_router(auth_router)
 
 
 # ── Route de santé ────────────────────────────────────────────────────────────
@@ -171,10 +198,19 @@ def providers() -> dict:
 
 # ── Routes de configuration LLM ──────────────────────────────────────────────
 @app.get("/api/llm-config")
-def llm_config_get() -> dict:
-    """Retourne la configuration LLM actuelle (clés masquées) et le dernier test."""
-    mgr = LLMConfigManager.instance()
-    return {"config": mgr.get_masked(), "lastTest": mgr.last_test()}
+def llm_config_get(current_user: dict = Depends(get_current_user)) -> dict:
+    """Retourne la config LLM.
+    - Admin : clés masquées + lastTest
+    - User  : uniquement la liste des providers disponibles
+    """
+    if current_user.get("role") == "admin":
+        mgr = LLMConfigManager.instance()
+        return {"config": mgr.get_masked(), "lastTest": mgr.last_test(), "isAdmin": True}
+    # Pour les users : juste les providers disponibles (pas les clés)
+    return {
+        "availableProviders": llm_config_repo.get_available_providers(),
+        "isAdmin": False,
+    }
 
 
 def _test_gemini_key(api_key: str) -> tuple[bool, str]:
@@ -242,8 +278,8 @@ def _test_groq_key(api_key: str, api_url: str = "") -> tuple[bool, str]:
 
 
 @app.post("/api/llm-config/test")
-def llm_config_test(payload: dict) -> dict:
-    """Teste la clé API Gemini ou Groq fournie dans le payload."""
+def llm_config_test(payload: dict, _: dict = Depends(require_admin)) -> dict:
+    """Teste la clé API Gemini ou Groq fournie dans le payload. Admin uniquement."""
     mgr = LLMConfigManager.instance()
     try:
         gemini_key = str(payload.get("gemini_api_key", "") or "")
@@ -276,11 +312,17 @@ def llm_config_test(payload: dict) -> dict:
 
 
 @app.post("/api/llm-config/save")
-def llm_config_save(payload: dict) -> dict:
-    """Persiste la configuration LLM sur disque."""
+def llm_config_save(payload: dict, _: dict = Depends(require_admin)) -> dict:
+    """Persiste la configuration LLM en base MySQL + fichier runtime. Admin uniquement."""
     mgr = LLMConfigManager.instance()
     try:
         mgr.update(payload, persist=True)
+        # Sauvegarder aussi en MySQL pour persistance partagée
+        llm_config_repo.save_llm_config(
+            gemini_api_key=str(payload.get("gemini_api_key") or ""),
+            groq_api_key=str(payload.get("groq_api_key") or ""),
+            groq_api_url=str(payload.get("groq_api_url") or ""),
+        )
         mgr.record_test(True, "LLM configuration saved")
         return {"success": True, "message": "LLM configuration saved", "lastTest": mgr.last_test()}
     except Exception as exc:
@@ -411,45 +453,94 @@ def db_config_connect(payload: dict) -> dict:
 
 # ── Routes historique et résultats ────────────────────────────────────────────
 @app.get("/api/results")
-def results() -> dict:
-    """Liste tous les résultats d'analyse disponibles."""
-    return {"history": list_available_results()}
+def results(current_user: dict = Depends(get_current_user)) -> dict:
+    """Liste les résultats d'analyse de l'utilisateur connecté."""
+    user_id = current_user["sub"]
+    # Fichiers disque disponibles (source de vérité pour les artefacts)
+    disk_results = {r["id"]: r for r in list_available_results()}
+    db_history   = analyses_repo.list_analyses(user_id)
+    db_names     = {r["question_name"] for r in db_history}
+
+    # Priorité : résultats en base liés à ce user, complétés par les infos disque
+    seen = set()
+    history = []
+    for r in db_history:
+        name = r["question_name"]
+        if name in disk_results and name not in seen:
+            seen.add(name)
+            history.append(disk_results[name])
+
+    # Si aucun historique en base (première connexion), retourner tout le disque
+    if not db_names:
+        history = list(disk_results.values())
+
+    return {"history": history}
 
 
 @app.delete("/history")
 @app.delete("/api/history")
-def delete_history() -> dict[str, str]:
-    """Supprime tout l'historique d'analyses (requests, sql, dataviz, outputs)."""
+def delete_history(current_user: dict = Depends(get_current_user)) -> dict[str, str]:
+    """Supprime l'historique d'analyses de l'utilisateur connecté."""
     try:
+        analyses_repo.delete_analyses(current_user["sub"])
         return clear_history()
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.get("/api/results/{question_name}")
-def result_detail(question_name: str) -> dict:
-    """Retourne le détail complet d'un résultat d'analyse (SQL, CSV, rapport, chart…)."""
+def result_detail(question_name: str, _: dict = Depends(get_current_user)) -> dict:
+    """Retourne le détail complet d'un résultat d'analyse."""
     try:
         return load_result(question_name)
     except PipelineServiceError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+# ── KPIs par user ─────────────────────────────────────────────────────────────
+
+@app.get("/api/user/kpis")
+def get_user_kpis(current_user: dict = Depends(get_current_user)) -> dict:
+    return {"kpis": kpis_repo.get_kpis(current_user["sub"])}
+
+
+@app.post("/api/user/kpis")
+def pin_kpi(payload: dict, current_user: dict = Depends(get_current_user)) -> dict:
+    kpis_repo.upsert_kpi(current_user["sub"], payload)
+    return {"kpis": kpis_repo.get_kpis(current_user["sub"])}
+
+
+@app.delete("/api/user/kpis/{kpi_id}")
+def unpin_kpi(kpi_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+    kpis_repo.delete_kpi(current_user["sub"], kpi_id)
+    return {"kpis": kpis_repo.get_kpis(current_user["sub"])}
+
+
+# ── Dashboard par user ────────────────────────────────────────────────────────
+
+@app.get("/api/user/dashboard")
+def get_user_dashboard(current_user: dict = Depends(get_current_user)) -> dict:
+    return {"dashboard": dashboard_repo.get_dashboard(current_user["sub"])}
+
+
+@app.post("/api/user/dashboard")
+def pin_chart(payload: dict, current_user: dict = Depends(get_current_user)) -> dict:
+    dashboard_repo.upsert_chart(current_user["sub"], payload)
+    return {"dashboard": dashboard_repo.get_dashboard(current_user["sub"])}
+
+
+@app.delete("/api/user/dashboard/{chart_id}")
+def unpin_chart(chart_id: str, current_user: dict = Depends(get_current_user)) -> dict:
+    dashboard_repo.delete_chart(current_user["sub"], chart_id)
+    return {"dashboard": dashboard_repo.get_dashboard(current_user["sub"])}
+
+
 # ── Route principale : lancement du pipeline d'analyse ───────────────────────
 @app.post("/api/pipeline/run")
-def pipeline_run(payload: dict) -> dict:
-    """Lance le pipeline complet : génération SQL → exécution → dataviz → insights.
-
-    Paramètres attendus dans le body JSON :
-    - questionText      : question en langage naturel
-    - artifactName      : nom optionnel pour les artefacts générés
-    - databaseName      : base de données cible
-    - schemaName        : schéma cible
-    - providerName      : provider LLM ("gemini" ou "groq")
-    - overwriteExisting : écraser si le nom existe déjà
-    """
+def pipeline_run(payload: dict, current_user: dict = Depends(get_current_user)) -> dict:
+    """Lance le pipeline complet : génération SQL → exécution → dataviz → insights."""
     try:
-        return run_pipeline(
+        result = run_pipeline(
             question_text=str(payload.get("questionText", "")).strip(),
             artifact_name=str(payload.get("artifactName", "")),
             database_name=str(payload.get("databaseName", "")),
@@ -457,6 +548,19 @@ def pipeline_run(payload: dict) -> dict:
             provider_name=str(payload.get("providerName", "gemini")),
             overwrite_existing=bool(payload.get("overwriteExisting", False)),
         )
+        # Sauvegarder l'analyse en base liée à l'utilisateur
+        try:
+            analyses_repo.save_analysis(current_user["sub"], {
+                "questionName": result.get("questionName", ""),
+                "questionText": str(payload.get("questionText", "")),
+                "databaseName": str(payload.get("databaseName", "")),
+                "schemaName":   str(payload.get("schemaName", "")),
+                "providerName": str(payload.get("providerName", "")),
+                "rowsReturned": result.get("metadata", {}).get("rows_returned", 0),
+            })
+        except Exception:
+            pass  # Ne pas bloquer le pipeline si la sauvegarde en base échoue
+        return result
     except PipelineServiceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -465,7 +569,7 @@ def pipeline_run(payload: dict) -> dict:
 
 # ── Route de téléchargement d'artefacts ──────────────────────────────────────
 @app.get("/api/artifacts/{question_name}/{artifact_type}")
-def artifact(question_name: str, artifact_type: str):
+def artifact(question_name: str, artifact_type: str, _: dict = Depends(get_current_user)):
     """Sert un artefact généré (sql, csv, metadata, chart, report, logs)."""
     try:
         artifact_path, media_type = get_artifact_path(question_name, artifact_type)
@@ -497,7 +601,7 @@ def artifact(question_name: str, artifact_type: str):
 # ── KPIs ──────────────────────────────────────────────────────────────────────
 
 @app.post("/api/kpi/refresh/{question_name}")
-def kpi_refresh(question_name: str) -> dict:
+def kpi_refresh(question_name: str, _: dict = Depends(get_current_user)) -> dict:
     """Ré-exécute le SQL persisté et retourne la valeur KPI mise à jour.
 
     Ne fait aucun appel LLM : lit le fichier SQL existant et le rejoue
@@ -544,7 +648,7 @@ def kpi_refresh(question_name: str) -> dict:
 # ── Mode Chat Analytique ──────────────────────────────────────────────────────
 
 @app.post("/api/chat/message")
-def chat_message(payload: dict) -> dict:
+def chat_message(payload: dict, _: dict = Depends(get_current_user)) -> dict:
     """Endpoint du chat analytique conversationnel.
 
     Reçoit un message utilisateur + historique de conversation,
