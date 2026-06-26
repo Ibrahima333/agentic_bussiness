@@ -12,6 +12,7 @@ Utilisation en ligne de commande :
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -20,6 +21,34 @@ if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from backend.llm.factory import generate_with_fallback
+
+def _clean_sql(text: str) -> str:
+    """Supprime les balises markdown et tout texte parasite autour du SQL.
+
+    Le LLM entoure parfois le SQL de :
+      ```sql
+      SELECT ...
+      ```
+    ou d'explications avant/après. On extrait uniquement le bloc SQL.
+    """
+    # Cas 1 : bloc ```sql ... ``` ou ``` ... ```
+    match = re.search(r"```(?:sql)?\s*([\s\S]+?)```", text, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+
+    # Cas 2 : pas de balises — nettoyer les lignes qui ne sont pas du SQL
+    lines = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        # Ignorer les lignes vides en début, les commentaires markdown type "Voici..."
+        if not stripped:
+            if lines:  # garder les lignes vides à l'intérieur
+                lines.append(line)
+            continue
+        lines.append(line)
+
+    return "\n".join(lines).strip()
+
 
 # Dossier de sortie pour les fichiers SQL générés
 SQL_DIR = Path("sql")
@@ -67,9 +96,12 @@ def generate_sql(
         print(exc)
         sys.exit(1)
 
+    # Nettoyage du SQL : suppression des balises markdown ```sql ... ```
+    sql_clean = _clean_sql(result.text)
+
     # Écriture du fichier SQL généré
     sql_file.parent.mkdir(exist_ok=True)
-    sql_file.write_text(result.text)
+    sql_file.write_text(sql_clean)
 
     # Avertissement si un provider de secours a été utilisé
     if result.used_fallback:

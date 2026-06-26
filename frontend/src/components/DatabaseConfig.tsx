@@ -39,7 +39,7 @@ export default function DatabaseConfig({ api, onAfterConnect }: Props) {
 
   const [form, setForm] = useState<DbConfigPayload>({
     db_type: "mysql",
-    host: "localhost",
+    host: "host.docker.internal",
     port: 3306,
     user: "root",
     password: "",
@@ -113,28 +113,28 @@ export default function DatabaseConfig({ api, onAfterConnect }: Props) {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+    <div className="rounded-lg border border-zinc-700 bg-zinc-800 border-zinc-700 overflow-hidden">
       {/* Header cliquable */}
       <button
         type="button"
         onClick={() => setIsOpen(o => !o)}
-        className="w-full p-4 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left"
+        className="w-full p-4 flex items-center gap-3 hover:bg-zinc-700/50 transition-colors text-left"
       >
         <div className={cn(
           "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border",
           connected === true ? "bg-emerald-50 border-emerald-100" :
           connected === false ? "bg-rose-50 border-rose-100" :
-          "bg-blue-50 border-blue-100"
+          "bg-zinc-700 border-zinc-600"
         )}>
           <Database className={cn("w-4 h-4",
             connected === true ? "text-emerald-700" :
             connected === false ? "text-rose-700" :
-            "text-blue-700"
+            "text-indigo-400"
           )} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-slate-900 text-sm">Base de données</div>
-          <div className="text-xs text-slate-500 truncate">
+          <div className="font-semibold text-zinc-100 text-sm">Base de données</div>
+          <div className="text-xs text-zinc-400 truncate">
             {connected === true
               ? `${form.db_type} · ${form.host} · ${form.database}`
               : connected === false
@@ -145,19 +145,19 @@ export default function DatabaseConfig({ api, onAfterConnect }: Props) {
         <div className="flex items-center gap-2 shrink-0">
           {connected === true && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
           {connected === false && <XCircle className="w-4 h-4 text-rose-500" />}
-          {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+          {isOpen ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
         </div>
       </button>
 
       {/* Formulaire repliable */}
       {isOpen && (
-        <div className="border-t border-slate-100 p-4">
+        <div className="border-t border-zinc-700/60 p-4">
           <form onSubmit={handleConnect} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500">Type</label>
+                <label className="text-xs font-semibold text-zinc-400">Type</label>
                 <select
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-zinc-900/60 border border-zinc-700 text-zinc-100 text-sm rounded-xl p-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={String(form.db_type)}
                   onChange={e => update({ db_type: e.target.value, port: e.target.value === "mysql" ? 3306 : 5432 })}
                   disabled={isLoading}
@@ -166,28 +166,28 @@ export default function DatabaseConfig({ api, onAfterConnect }: Props) {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500">Port</label>
+                <label className="text-xs font-semibold text-zinc-400">Port</label>
                 <input
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-zinc-900/60 border border-zinc-700 text-zinc-100 text-sm rounded-xl p-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={String(form.port)}
                   onChange={e => update({ port: Number(e.target.value) || e.target.value })}
                   disabled={isLoading}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500">Host</label>
+                <label className="text-xs font-semibold text-zinc-400">Host</label>
                 <input
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-zinc-900/60 border border-zinc-700 text-zinc-100 text-sm rounded-xl p-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={form.host}
                   onChange={e => update({ host: e.target.value })}
-                  placeholder="localhost"
+                  placeholder="host.docker.internal"
                   disabled={isLoading}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500">Base</label>
+                <label className="text-xs font-semibold text-zinc-400">Base</label>
                 <input
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-zinc-900/60 border border-zinc-700 text-zinc-100 text-sm rounded-xl p-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={form.database}
                   onChange={e => update({ database: e.target.value })}
                   placeholder="ma_base"
@@ -195,19 +195,19 @@ export default function DatabaseConfig({ api, onAfterConnect }: Props) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500">Utilisateur</label>
+                <label className="text-xs font-semibold text-zinc-400">Utilisateur</label>
                 <input
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-zinc-900/60 border border-zinc-700 text-zinc-100 text-sm rounded-xl p-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={form.user}
                   onChange={e => update({ user: e.target.value })}
                   disabled={isLoading}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-500">Mot de passe</label>
+                <label className="text-xs font-semibold text-zinc-400">Mot de passe</label>
                 <input
                   type="password"
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm rounded-lg p-2 outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-zinc-900/60 border border-zinc-700 text-zinc-100 text-sm rounded-xl p-2 outline-none focus:ring-2 focus:ring-blue-500"
                   value={form.password}
                   onChange={e => update({ password: e.target.value })}
                   placeholder="••••••••"
@@ -229,7 +229,7 @@ export default function DatabaseConfig({ api, onAfterConnect }: Props) {
             <button
               type="submit"
               disabled={isLoading || !form.database}
-              className="w-full inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-md text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors"
             >
               {isLoading
                 ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Connexion…</>

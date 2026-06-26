@@ -2,10 +2,13 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { ChatArea } from "./components/ChatArea";
 import { PipelineInput } from "./components/PipelineInput";
+import { Dashboard } from "./components/Dashboard";
 import { AppState } from "./types";
 import { clearHistory, fetchConfig, fetchHistory, fetchResult } from "./lib/api";
+import { MessageSquare, LayoutDashboard } from "lucide-react";
 
 export default function App() {
+  const [view, setView] = useState<"chat" | "dashboard">("chat");
   const activeResultRequestRef = useRef<string | null>(null);
   const [state, setState] = useState<AppState>({
     databases: [],
@@ -21,6 +24,7 @@ export default function App() {
     isLoading: false,
     isBootstrapping: true,
     errorMessage: null,
+    insertText: null,
   });
 
   const refreshConfiguration = useCallback(async (preserveSelection = true) => {
@@ -183,16 +187,51 @@ export default function App() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
+    <div className="flex h-screen bg-white font-sans text-zinc-900 overflow-hidden">
       <Sidebar
         state={state}
         setState={setState}
         onRefresh={() => void refreshConfiguration(true)}
         onClearHistory={() => void handleClearHistory()}
       />
-      <main className="flex-1 flex flex-col relative">
-        <ChatArea state={state} />
-        <PipelineInput state={state} setState={setState} />
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Barre de navigation des vues */}
+        <nav className="shrink-0 flex items-center gap-1 px-4 py-2 border-b border-zinc-200 bg-white">
+          <button
+            type="button"
+            onClick={() => setView("chat")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              view === "chat"
+                ? "bg-zinc-100 text-zinc-900"
+                : "text-zinc-500 hover:text-zinc-800"
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            Analyse
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("dashboard")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              view === "dashboard"
+                ? "bg-zinc-100 text-zinc-900"
+                : "text-zinc-500 hover:text-zinc-800"
+            }`}
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            Dashboard
+          </button>
+        </nav>
+
+        {/* Contenu selon la vue */}
+        {view === "chat" ? (
+          <div className="flex-1 flex flex-col relative overflow-hidden">
+            <ChatArea state={state} />
+            <PipelineInput state={state} setState={setState} />
+          </div>
+        ) : (
+          <Dashboard />
+        )}
       </main>
     </div>
   );

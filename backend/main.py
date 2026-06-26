@@ -88,6 +88,81 @@ def schemas(database_name: str) -> dict:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@app.get("/api/schema/explore")
+def schema_explore(
+    database: str = Query(...),
+    schema: str = Query(default=""),
+) -> dict:
+    """Retourne la liste des tables et leurs colonnes pour l'explorateur de schéma.
+
+    Chaque table contient : nom, nombre de colonnes, et la liste des colonnes
+    avec leur type, nullabilité et clé (PK/FK).
+    """
+    from backend.utils.db_utils import run_query, _db_type
+
+    db_type = _db_type()
+    target = schema if schema else database
+
+    try:
+        if db_type == "mysql":
+            # Récupérer toutes les colonnes de toutes les tables en une requête
+            _, rows = run_query(
+                """
+                SELECT table_name, column_name, column_type, is_nullable, column_key
+                FROM information_schema.columns
+                WHERE table_schema = %s
+                ORDER BY table_name, ordinal_position
+                """,
+                target, (target,)
+            )
+        else:
+            # PostgreSQL
+            _, rows = run_query(
+                """
+                SELECT c.table_name, c.column_name, c.data_type,
+                       c.is_nullable,
+                       CASE WHEN tc.constraint_type = 'PRIMARY KEY' THEN 'PRI'
+                            WHEN tc.constraint_type = 'FOREIGN KEY'  THEN 'MUL'
+                            ELSE '' END AS column_key
+                FROM information_schema.columns c
+                LEFT JOIN information_schema.key_column_usage kcu
+                  ON c.table_name = kcu.table_name
+                 AND c.column_name = kcu.column_name
+                 AND c.table_schema = kcu.table_schema
+                LEFT JOIN information_schema.table_constraints tc
+                  ON kcu.constraint_name = tc.constraint_name
+                 AND kcu.table_schema = tc.constraint_schema
+                WHERE c.table_schema = %s
+                ORDER BY c.table_name, c.ordinal_position
+                """,
+                database, (schema or "public",)
+            )
+
+        # Regrouper les colonnes par table
+        tables: dict = {}
+        for table_name, col_name, col_type, nullable, col_key in rows:
+            if table_name not in tables:
+                tables[table_name] = []
+            tables[table_name].append({
+                "name": col_name,
+                "type": str(col_type),
+                "nullable": nullable == "YES",
+                "key": str(col_key) if col_key else "",
+            })
+
+        return {
+            "database": database,
+            "schema": target,
+            "tables": [
+                {"name": t, "columns": cols}
+                for t, cols in sorted(tables.items())
+            ]
+        }
+
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @app.get("/api/providers")
 def providers() -> dict:
     """Retourne la liste des providers LLM supportés."""

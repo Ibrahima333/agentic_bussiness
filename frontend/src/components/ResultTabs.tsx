@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { PipelineResult } from "../types";
-import { Code2, Table, Database, BarChart3, FileText, Terminal, Download, FileDown, Loader2 } from "lucide-react";
+import { Code2, Table, Database, BarChart3, FileText, Terminal, Download, FileDown, Loader2, Pin, PinOff } from "lucide-react";
 import { cn } from "../lib/utils";
 import Markdown from "react-markdown";
 import { buildArtifactUrl } from "../lib/api";
 import { exportReportToPdf } from "../lib/exportPdf";
+import { pinChart, unpinChart, isPinned } from "../lib/dashboard";
 
 interface ResultTabsProps {
   result: PipelineResult;
@@ -13,8 +14,27 @@ interface ResultTabsProps {
 type TabType = "sql" | "results" | "metadata" | "chart" | "report" | "logs";
 
 export function ResultTabs({ result }: ResultTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabType>("sql");
+  const [activeTab, setActiveTab] = useState<TabType>("results");
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [pinned, setPinned] = useState(() => isPinned(result.id));
+
+  const handlePin = () => {
+    if (pinned) {
+      unpinChart(result.id);
+      setPinned(false);
+    } else {
+      pinChart({
+        id: result.id,
+        questionName: result.questionName,
+        questionText: result.questionText,
+        chartHtml: result.chartHtml,
+        database: result.databaseName,
+        schema: result.schemaName,
+        provider: result.providerName,
+      });
+      setPinned(true);
+    }
+  };
 
   const handleDownload = (artifactPath: string) => {
     window.open(buildArtifactUrl(artifactPath), "_blank", "noopener,noreferrer");
@@ -30,8 +50,8 @@ export function ResultTabs({ result }: ResultTabsProps) {
   };
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
-    { id: "sql", label: "SQL", icon: <Code2 className="w-4 h-4" /> },
     { id: "results", label: "Results", icon: <Table className="w-4 h-4" /> },
+    { id: "sql", label: "SQL", icon: <Code2 className="w-4 h-4" /> },
     { id: "metadata", label: "Metadata", icon: <Database className="w-4 h-4" /> },
     { id: "chart", label: "Chart", icon: <BarChart3 className="w-4 h-4" /> },
     { id: "report", label: "Report", icon: <FileText className="w-4 h-4" /> },
@@ -39,18 +59,18 @@ export function ResultTabs({ result }: ResultTabsProps) {
   ];
 
   return (
-    <div className="mt-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+    <div className="mt-4 bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
       {/* Tab Header */}
-      <div className="flex items-center gap-1 p-2 bg-slate-50 border-b border-slate-200 overflow-x-auto">
+      <div className="flex items-center gap-1 p-2 bg-stone-50 border-b border-stone-200 overflow-x-auto">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap",
               activeTab === tab.id
-                ? "bg-white text-blue-700 shadow-sm border border-slate-200/60"
-                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 border border-transparent"
+                ? "bg-white text-orange-700 shadow-sm border border-stone-200/60"
+                : "text-stone-600 hover:text-stone-900 hover:bg-stone-200/50 border border-transparent"
             )}
           >
             {tab.icon}
@@ -67,13 +87,13 @@ export function ResultTabs({ result }: ResultTabsProps) {
               <button
                 type="button"
                 onClick={() => handleDownload(result.artifactUrls.sql)}
-                className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm"
+                className="flex items-center gap-2 text-sm font-medium text-stone-600 bg-white border border-stone-200 px-3 py-1.5 rounded-xl hover:bg-stone-50 hover:text-stone-900 transition-colors shadow-sm"
               >
                 <Download className="w-4 h-4" /> Download SQL
               </button>
             </div>
-            <div className="bg-slate-950 rounded-xl p-4 overflow-x-auto">
-              <pre className="text-sm text-slate-50 font-mono leading-relaxed">
+            <div className="bg-stone-950 rounded-xl p-4 overflow-x-auto">
+              <pre className="text-sm text-stone-50 font-mono leading-relaxed">
                 <code>{result.sql}</code>
               </pre>
             </div>
@@ -86,20 +106,20 @@ export function ResultTabs({ result }: ResultTabsProps) {
               <button
                 type="button"
                 onClick={() => handleDownload(result.artifactUrls.csv)}
-                className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm"
+                className="flex items-center gap-2 text-sm font-medium text-stone-600 bg-white border border-stone-200 px-3 py-1.5 rounded-xl hover:bg-stone-50 hover:text-stone-900 transition-colors shadow-sm"
               >
                 <Download className="w-4 h-4" /> Download CSV
               </button>
             </div>
             {result.csvData.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
+              <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-6 py-10 text-center text-sm text-stone-500">
                 No rows returned for this query.
               </div>
             ) : (
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="border border-stone-200 rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left text-slate-600">
-                  <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
+                <table className="w-full text-sm text-left text-stone-600">
+                  <thead className="text-xs text-stone-700 uppercase bg-stone-50 border-b border-stone-200">
                     <tr>
                       {Object.keys(result.csvData[0] || {}).map((key) => (
                         <th key={key} className="px-6 py-3 font-semibold">{key}</th>
@@ -108,7 +128,7 @@ export function ResultTabs({ result }: ResultTabsProps) {
                   </thead>
                   <tbody>
                     {result.csvData.map((row, i) => (
-                      <tr key={i} className="bg-white border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                      <tr key={i} className="bg-white border-b border-stone-100 last:border-0 hover:bg-stone-50 transition-colors">
                         {Object.values(row).map((val, j) => (
                           <td key={j} className="px-6 py-4 whitespace-nowrap">
                             {val === null || val === undefined ? "—" : String(val)}
@@ -128,44 +148,44 @@ export function ResultTabs({ result }: ResultTabsProps) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-bold text-slate-900">Raw Metadata</h3>
+                <h3 className="text-sm font-bold text-stone-900">Raw Metadata</h3>
                 <button
                   type="button"
                   onClick={() => handleDownload(result.artifactUrls.metadata)}
-                  className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm"
+                  className="flex items-center gap-2 text-sm font-medium text-stone-600 bg-white border border-stone-200 px-3 py-1.5 rounded-xl hover:bg-stone-50 hover:text-stone-900 transition-colors shadow-sm"
                 >
                   <Download className="w-4 h-4" /> JSON
                 </button>
               </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-x-auto">
-                <pre className="text-sm text-slate-700 font-mono">
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 overflow-x-auto">
+                <pre className="text-sm text-stone-700 font-mono">
                   <code>{JSON.stringify(result.metadata, null, 2)}</code>
                 </pre>
               </div>
             </div>
             <div className="space-y-6">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 mb-4">Summary</h3>
+                <h3 className="text-sm font-bold text-stone-900 mb-4">Summary</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Rows</p>
-                    <p className="text-2xl font-bold text-slate-900">{result.metadata.rows_returned}</p>
+                  <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+                    <p className="text-xs font-medium text-stone-500 uppercase tracking-wider mb-1">Rows</p>
+                    <p className="text-2xl font-bold text-stone-900">{result.metadata.rows_returned}</p>
                   </div>
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Columns</p>
-                    <p className="text-2xl font-bold text-slate-900">{result.metadata.columns?.length ?? 0}</p>
+                  <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+                    <p className="text-xs font-medium text-stone-500 uppercase tracking-wider mb-1">Columns</p>
+                    <p className="text-2xl font-bold text-stone-900">{result.metadata.columns?.length ?? 0}</p>
                   </div>
-                  <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm col-span-2">
-                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Execution Time</p>
-                    <p className="text-2xl font-bold text-slate-900">{result.metadata.execution_time_ms ?? 0} <span className="text-sm font-normal text-slate-500">ms</span></p>
+                  <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm col-span-2">
+                    <p className="text-xs font-medium text-stone-500 uppercase tracking-wider mb-1">Execution Time</p>
+                    <p className="text-2xl font-bold text-stone-900">{result.metadata.execution_time_ms ?? 0} <span className="text-sm font-normal text-stone-500">ms</span></p>
                   </div>
                 </div>
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900 mb-3">Schema</h3>
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <table className="w-full text-sm text-left text-slate-600">
-                    <thead className="text-xs text-slate-700 uppercase bg-slate-50 border-b border-slate-200">
+                <h3 className="text-sm font-bold text-stone-900 mb-3">Schema</h3>
+                <div className="border border-stone-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm text-left text-stone-600">
+                    <thead className="text-xs text-stone-700 uppercase bg-stone-50 border-b border-stone-200">
                       <tr>
                         <th className="px-4 py-2 font-semibold">Column</th>
                         <th className="px-4 py-2 font-semibold">Type</th>
@@ -173,9 +193,9 @@ export function ResultTabs({ result }: ResultTabsProps) {
                     </thead>
                     <tbody>
                       {(result.metadata.columns ?? []).map((col, i) => (
-                        <tr key={i} className="bg-white border-b border-slate-100 last:border-0">
-                          <td className="px-4 py-2 font-medium text-slate-900">{col.name}</td>
-                          <td className="px-4 py-2 font-mono text-xs text-blue-600 bg-blue-50 rounded inline-block mt-1.5 mb-1.5 ml-4">{col.type}</td>
+                        <tr key={i} className="bg-white border-b border-stone-100 last:border-0">
+                          <td className="px-4 py-2 font-medium text-stone-900">{col.name}</td>
+                          <td className="px-4 py-2 font-mono text-xs text-orange-600 bg-orange-50 rounded inline-block mt-1.5 mb-1.5 ml-4">{col.type}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -188,25 +208,38 @@ export function ResultTabs({ result }: ResultTabsProps) {
 
         {activeTab === "chart" && (
           <div className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={handlePin}
+                className={cn(
+                  "flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg border transition-colors",
+                  pinned
+                    ? "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700"
+                    : "bg-white text-zinc-600 border-zinc-200 hover:border-indigo-400 hover:text-indigo-600"
+                )}
+              >
+                {pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
+                {pinned ? "Épinglé ✓" : "Épingler au tableau de bord"}
+              </button>
               <button
                 type="button"
                 onClick={() => handleDownload(result.artifactUrls.chart)}
-                className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm"
+                className="flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-800 transition-colors"
               >
-                <Download className="w-4 h-4" /> Download HTML
+                <Download className="w-4 h-4" /> HTML
               </button>
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl p-6 h-[500px] flex items-center justify-center shadow-sm">
+            <div className="bg-white border border-stone-200 rounded-xl p-6 h-[500px] flex items-center justify-center shadow-sm">
               {result.chartHtml ? (
                 <iframe
                   title={`${result.questionName}-chart`}
                   srcDoc={result.chartHtml}
                   sandbox="allow-scripts"
-                  className="h-full w-full rounded-lg border border-slate-200"
+                  className="h-full w-full rounded-xl border border-stone-200"
                 />
               ) : (
-                <div className="text-sm text-slate-500">No chart was generated for this run.</div>
+                <div className="text-sm text-stone-500">No chart was generated for this run.</div>
               )}
             </div>
           </div>
@@ -215,7 +248,7 @@ export function ResultTabs({ result }: ResultTabsProps) {
         {activeTab === "report" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-700">Insights &amp; Actions</h3>
+              <h3 className="text-sm font-semibold text-stone-700">Insights &amp; Actions</h3>
               <button
                 type="button"
                 onClick={() => void handleExportPdf()}
@@ -227,7 +260,7 @@ export function ResultTabs({ result }: ResultTabsProps) {
                 : <><FileDown className="w-4 h-4" />Télécharger PDF</>}
               </button>
             </div>
-            <div className="prose prose-slate max-w-none bg-white border border-slate-200 rounded-xl p-8 shadow-sm">
+            <div className="prose prose-slate max-w-none bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
               <Markdown>{result.report}</Markdown>
             </div>
           </div>
@@ -239,13 +272,13 @@ export function ResultTabs({ result }: ResultTabsProps) {
               <button
                 type="button"
                 onClick={() => handleDownload(result.artifactUrls.logs)}
-                className="flex items-center gap-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm"
+                className="flex items-center gap-2 text-sm font-medium text-stone-600 bg-white border border-stone-200 px-3 py-1.5 rounded-xl hover:bg-stone-50 hover:text-stone-900 transition-colors shadow-sm"
               >
                 <Download className="w-4 h-4" /> Download Logs
               </button>
             </div>
-            <div className="bg-slate-950 rounded-xl p-4 overflow-x-auto">
-              <pre className="text-sm text-slate-400 font-mono leading-relaxed">
+            <div className="bg-stone-950 rounded-xl p-4 overflow-x-auto">
+              <pre className="text-sm text-stone-400 font-mono leading-relaxed">
                 <code>{result.logs}</code>
               </pre>
             </div>

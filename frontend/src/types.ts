@@ -36,6 +36,19 @@ export interface PipelineResult extends PipelineResultSummary {
   artifactUrls: ArtifactUrls;
 }
 
+export interface DashboardItem {
+  id: string;
+  questionName: string;
+  questionText: string;
+  chartHtml: string;
+  database: string;
+  schema: string;
+  provider: string;
+  pinnedAt: number;
+  /** Largeur en colonnes (6 = demi, 12 = pleine largeur) */
+  w: number;
+}
+
 export interface AppState {
   databases: string[];
   schemas: string[];
@@ -50,4 +63,6 @@ export interface AppState {
   isLoading: boolean;
   isBootstrapping: boolean;
   errorMessage: string | null;
+  /** Texte à insérer dans le champ de saisie (depuis l'explorateur de schéma) */
+  insertText: string | null;
 }
