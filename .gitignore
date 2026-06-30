@@ -219,6 +219,16 @@ sql/
 schema/
 runtime/
 frontend/dist/
+node_modules/
+frontend/node_modules/
+
+# ── Fichiers frontend importants à inclure (désignorer) ───────────────────────
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/tsconfig.json
+!frontend/tsconfig.node.json
+!frontend/vite.config.ts
+!frontend/index.html
 
 # ── Outils de développement ───────────────────────────────────────────────────
 .claude/
