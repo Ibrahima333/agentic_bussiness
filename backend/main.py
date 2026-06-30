@@ -128,6 +128,9 @@ def schema_explore(
     from backend.utils.db_utils import run_query, _db_type
 
     db_type = _db_type()
+    # PostgreSQL stocke les noms de schéma en minuscules dans information_schema
+    if db_type != "mysql" and schema:
+        schema = schema.lower()
     target = schema if schema else database
 
     try:
