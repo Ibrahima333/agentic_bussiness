@@ -21,6 +21,7 @@ if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from backend.llm.factory import generate_with_fallback
+from backend.scripts.schema import generate_schema
 
 def _clean_sql(text: str) -> str:
     """Supprime les balises markdown et tout texte parasite autour du SQL.
@@ -76,11 +77,14 @@ def generate_sql(
     sql_file = SQL_DIR / (question_file.stem + ".sql")
     schema_file = Path(f"schema/{database_name}__{schema_name}_schema.md")
 
-    # Vérification que le fichier de schéma existe (généré par scripts/schema.py)
+    # Génération automatique du schéma s'il n'existe pas encore
     if not schema_file.exists():
-        print(f"Erreur : Fichier schéma introuvable : {schema_file}")
-        print(f"Générez le schéma d'abord : python -m backend.scripts.schema --database {database_name} --schema {schema_name}")
-        sys.exit(1)
+        print(f"[schema] Fichier introuvable, génération automatique pour {database_name}/{schema_name}...")
+        try:
+            generate_schema(database_name, schema_name)
+        except Exception as e:
+            print(f"Erreur lors de la génération du schéma : {e}")
+            sys.exit(1)
 
     # Construction du prompt en substituant les variables dans le template
     prompt = PROMPT_TEMPLATE.read_text()
