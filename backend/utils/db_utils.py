@@ -77,12 +77,18 @@ def get_connection(database_name: str):
             password=password,
         )
     else:
-        # Connexion PostgreSQL via psycopg2
+        # Pour PostgreSQL, si database_name est vide ou ressemble à un schéma
+        # (ex: "public"), utiliser le vrai nom de base depuis la config runtime.
+        pg_dbname = database_name
+        if cfg and (not pg_dbname or pg_dbname == (cfg.schema or "public")):
+            if cfg.database:
+                pg_dbname = cfg.database
+
         import psycopg2
         return psycopg2.connect(
             host=host,
             port=int(port),
-            dbname=database_name,
+            dbname=pg_dbname,
             user=user,
             password=password,
         )

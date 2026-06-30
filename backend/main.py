@@ -318,11 +318,17 @@ def llm_config_save(payload: dict, _: dict = Depends(require_admin)) -> dict:
     try:
         mgr.update(payload, persist=True)
         # Sauvegarder aussi en MySQL pour persistance partagée
+        # Passer uniquement les clés présentes dans le payload
+        # Le repository fait un update partiel — les clés absentes restent intactes
         llm_config_repo.save_llm_config(
             gemini_api_key=str(payload.get("gemini_api_key") or ""),
             groq_api_key=str(payload.get("groq_api_key") or ""),
             groq_api_url=str(payload.get("groq_api_url") or ""),
         )
+        # Synchroniser LLMConfigManager avec la config complète en base
+        full_cfg = llm_config_repo.get_llm_config()
+        if full_cfg:
+            mgr.update({k: v for k, v in full_cfg.items() if v}, persist=True)
         mgr.record_test(True, "LLM configuration saved")
         return {"success": True, "message": "LLM configuration saved", "lastTest": mgr.last_test()}
     except Exception as exc:
@@ -569,7 +575,7 @@ def pipeline_run(payload: dict, current_user: dict = Depends(get_current_user)) 
 
 # ── Route de téléchargement d'artefacts ──────────────────────────────────────
 @app.get("/api/artifacts/{question_name}/{artifact_type}")
-def artifact(question_name: str, artifact_type: str, _: dict = Depends(get_current_user)):
+def artifact(question_name: str, artifact_type: str):
     """Sert un artefact généré (sql, csv, metadata, chart, report, logs)."""
     try:
         artifact_path, media_type = get_artifact_path(question_name, artifact_type)

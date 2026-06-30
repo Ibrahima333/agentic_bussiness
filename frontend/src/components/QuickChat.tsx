@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Send, Loader2, RotateCcw, Bot, User, MessageCircle, ClipboardList, X } from "lucide-react";
 import { cn } from "../lib/utils";
+import { apiFetch } from "../lib/api";
 import {
   toggleChatMessage,
   isChatMessageSelected,
@@ -60,18 +61,10 @@ export function QuickChat({ database, schema, provider }: Props) {
 
     try {
       const history = messages.map(m => ({ role: m.role, content: m.content }));
-      const res = await fetch("/api/chat/message", {
+      const data = await apiFetch("/api/chat/message", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: trimmed, database, schema, provider, history }),
       });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail ?? `Erreur ${res.status}`);
-      }
-
-      const data = await res.json();
       const assistantMsg: Message = {
         id: crypto.randomUUID(),
         role: "assistant",

@@ -25,8 +25,12 @@ from backend.utils.db_utils import run_query
 
 
 def _db_type() -> str:
-    """Retourne le type de base de données actif depuis les variables d'environnement."""
-    return os.getenv("DB_TYPE", "postgresql").lower()
+    """Retourne le type de base de données actif depuis la config runtime, avec fallback env."""
+    try:
+        from backend.db_config import DatabaseConfigManager
+        return DatabaseConfigManager.instance().get().db_type.lower()
+    except Exception:
+        return os.getenv("DB_TYPE", "postgresql").lower()
 
 
 def _generate_schema_mysql(database_name: str, schema_name: str) -> list[str]:
@@ -170,9 +174,27 @@ def generate_schema(database_name: str, schema_name: str = "public"):
         database_name : nom de la base de données
         schema_name   : nom du schéma (défaut : "public")
     """
+    db_type = _db_type()
+
     # En MySQL : si schema_name est vide, on utilise database_name
-    if _db_type() == "mysql" and not schema_name:
+    if db_type == "mysql" and not schema_name:
         schema_name = database_name
+
+    # En PostgreSQL : utiliser systématiquement la base de la config runtime.
+    # Le frontend peut envoyer le nom du schéma ("public") à la place de la base
+    # réelle — la config runtime est la seule source de vérité fiable.
+    if db_type != "mysql":
+        try:
+            from backend.db_config import DatabaseConfigManager
+            cfg_db = DatabaseConfigManager.instance().get().database
+            if cfg_db:
+                if cfg_db != database_name:
+                    print(f"[schema] PostgreSQL : database_name corrigé '{database_name}' → '{cfg_db}'")
+                database_name = cfg_db
+        except Exception:
+            pass
+        if not schema_name:
+            schema_name = "public"
 
     schema_path = Path(f"schema/{database_name}__{schema_name}_schema.md")
     schema_path.parent.mkdir(exist_ok=True)

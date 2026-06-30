@@ -42,6 +42,17 @@ def execute_analysis(sql_file: Path, database_name: str, schema_name: str = "pub
     out_dir = OUTPUTS_DIR / question_name
     csv_path = out_dir / f"{question_name}.csv"
 
+    # Sécurité PostgreSQL : si database_name ressemble à un schéma, utiliser la config
+    from backend.utils.db_utils import _db_type
+    if _db_type() != "mysql" and (not database_name or database_name == schema_name):
+        try:
+            from backend.db_config import DatabaseConfigManager
+            cfg_db = DatabaseConfigManager.instance().get().database
+            if cfg_db and cfg_db != schema_name:
+                database_name = cfg_db
+        except Exception:
+            pass
+
     # Exécution de la requête SQL sur la base cible
     columns, rows = run_query(sql_file.read_text(), database_name)
 

@@ -28,7 +28,7 @@ def _get_pool() -> pooling.MySQLConnectionPool:
     if _pool is None:
         _pool = pooling.MySQLConnectionPool(
             pool_name="askdata_auth",
-            pool_size=5,
+            pool_size=10,
             **_DB_CONFIG,
         )
     return _pool
@@ -111,6 +111,10 @@ def init_db(retries: int = 10, delay: float = 3.0) -> None:
                     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """)
+
+            # Agrandissement des colonnes id si elles sont trop petites (migration)
+            cur.execute("ALTER TABLE kpis     MODIFY COLUMN id VARCHAR(255) NOT NULL")
+            cur.execute("ALTER TABLE dashboard MODIFY COLUMN id VARCHAR(255) NOT NULL")
 
             conn.commit()
             cur.close()

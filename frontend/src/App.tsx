@@ -220,43 +220,26 @@ export default function App() {
       />
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Barre de navigation des vues */}
-        <nav className="shrink-0 flex items-center gap-1 px-4 py-2 border-b border-zinc-200 bg-white">
-          <button
-            type="button"
-            onClick={() => setView("chat")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              view === "chat"
-                ? "bg-zinc-100 text-zinc-900"
-                : "text-zinc-500 hover:text-zinc-800"
-            }`}
-          >
-            <MessageSquare className="w-4 h-4" />
-            Analyse
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("quickchat")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              view === "quickchat"
-                ? "bg-zinc-100 text-zinc-900"
-                : "text-zinc-500 hover:text-zinc-800"
-            }`}
-          >
-            <MessagesSquare className="w-4 h-4" />
-            Chat IA
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("dashboard")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              view === "dashboard"
-                ? "bg-zinc-100 text-zinc-900"
-                : "text-zinc-500 hover:text-zinc-800"
-            }`}
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            Dashboard
-          </button>
+        <nav className="shrink-0 flex items-center gap-0.5 px-4 border-b border-zinc-200 bg-white">
+          {([
+            { id: "chat",      label: "Analyse",   icon: <MessageSquare className="w-4 h-4" /> },
+            { id: "quickchat", label: "Chat IA",   icon: <MessagesSquare className="w-4 h-4" /> },
+            { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+          ] as { id: typeof view; label: string; icon: React.ReactNode }[]).map(tab => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setView(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                view === tab.id
+                  ? "border-indigo-600 text-indigo-700"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800 hover:border-zinc-300"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
 
           {/* Spacer */}
           <div className="flex-1" />
@@ -266,10 +249,10 @@ export default function App() {
             <button
               type="button"
               onClick={() => setView("admin")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
                 view === "admin"
-                  ? "bg-violet-100 text-violet-700"
-                  : "text-zinc-500 hover:text-zinc-800"
+                  ? "border-violet-500 text-violet-700"
+                  : "border-transparent text-zinc-500 hover:text-zinc-800 hover:border-zinc-300"
               }`}
             >
               <Shield className="w-4 h-4" />
@@ -277,16 +260,23 @@ export default function App() {
             </button>
           )}
 
-          {/* Email + Logout */}
-          <span className="text-xs text-zinc-400 px-2 hidden sm:block">{currentUser?.email}</span>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium text-zinc-500 hover:text-red-600 transition-colors"
-            title="Se déconnecter"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+          {/* User + Logout */}
+          <div className="flex items-center gap-1 pl-2 border-l border-zinc-200 ml-1">
+            <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-xs font-bold hidden sm:flex">
+              {currentUser?.email?.[0]?.toUpperCase() ?? "?"}
+            </div>
+            <span className="text-xs text-zinc-500 px-1 hidden sm:block max-w-[140px] truncate">
+              {currentUser?.email?.split("@")[0]}
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="p-1.5 rounded-md text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+              title="Se déconnecter"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </nav>
 
         {/* Contenu selon la vue */}

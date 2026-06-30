@@ -219,3 +219,7 @@ sql/
 schema/
 runtime/
 frontend/dist/
+
+# ── Outils de développement ───────────────────────────────────────────────────
+.claude/
+.DS_Store

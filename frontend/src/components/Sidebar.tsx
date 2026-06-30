@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Database, LayoutTemplate, RefreshCw, History, FileText, Trash2, ChevronDown } from "lucide-react";
+import { Database, LayoutTemplate, RefreshCw, History, FileText, Trash2 } from "lucide-react";
 import { AppState } from "../types";
 import { cn } from "../lib/utils";
 import DatabaseConfig from "./DatabaseConfig";
@@ -30,7 +30,6 @@ interface SidebarProps {
 
 export function Sidebar({ state, setState, onRefresh, onClearHistory }: SidebarProps) {
   const [isClearingHistory, setIsClearingHistory] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const isReady = state.databases.length > 0 && state.selectedDatabase;
 
@@ -84,7 +83,7 @@ export function Sidebar({ state, setState, onRefresh, onClearHistory }: SidebarP
                 <select
                   className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 text-sm rounded-md p-2.5 outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                   value={state.selectedDatabase}
-                  onChange={e => setState({ ...state, selectedDatabase: e.target.value, selectedSchema: "" })}
+                  onChange={e => setState({ ...state, selectedDatabase: e.target.value, selectedSchema: "", activeResultId: null, activeResult: null })}
                 >
                   {state.databases.map(db => <option key={db} value={db}>{db}</option>)}
                 </select>
@@ -97,7 +96,7 @@ export function Sidebar({ state, setState, onRefresh, onClearHistory }: SidebarP
                   <select
                     className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 text-sm rounded-md p-2.5 outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                     value={state.selectedSchema}
-                    onChange={e => setState({ ...state, selectedSchema: e.target.value })}
+                    onChange={e => setState({ ...state, selectedSchema: e.target.value, activeResultId: null, activeResult: null })}
                   >
                     {state.schemas.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
@@ -109,26 +108,16 @@ export function Sidebar({ state, setState, onRefresh, onClearHistory }: SidebarP
               schema={state.selectedSchema}
               onInsert={text => setState(prev => ({ ...prev, insertText: text }))}
             />
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(o => !o)}
-              className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
-            >
-              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showAdvanced && "rotate-180")} />
-              Options avancées
-            </button>
-            {showAdvanced && (
-              <label className="flex items-center gap-2.5 cursor-pointer">
-                <div className="relative">
-                  <input type="checkbox" className="sr-only"
-                    checked={state.overwriteExisting}
-                    onChange={e => setState({ ...state, overwriteExisting: e.target.checked })} />
-                  <div className={cn("block w-9 h-5 rounded-full transition-colors", state.overwriteExisting ? "bg-indigo-600" : "bg-zinc-700")} />
-                  <div className={cn("absolute left-0.5 top-0.5 bg-white w-4 h-4 rounded-full transition-transform shadow-sm", state.overwriteExisting ? "translate-x-4" : "")} />
-                </div>
-                <span className="text-xs text-zinc-400">Écraser les résultats existants</span>
-              </label>
-            )}
+            <label className="flex items-center gap-2.5 cursor-pointer group">
+              <div className="relative shrink-0">
+                <input type="checkbox" className="sr-only"
+                  checked={state.overwriteExisting}
+                  onChange={e => setState({ ...state, overwriteExisting: e.target.checked })} />
+                <div className={cn("block w-8 h-4 rounded-full transition-colors", state.overwriteExisting ? "bg-indigo-600" : "bg-zinc-700")} />
+                <div className={cn("absolute left-0.5 top-0.5 bg-white w-3 h-3 rounded-full transition-transform shadow-sm", state.overwriteExisting ? "translate-x-4" : "")} />
+              </div>
+              <span className="text-[11px] text-zinc-600 group-hover:text-zinc-400 transition-colors">Écraser les résultats existants</span>
+            </label>
           </div>
         )}
 
@@ -152,24 +141,28 @@ export function Sidebar({ state, setState, onRefresh, onClearHistory }: SidebarP
           {state.history.length === 0 ? (
             <p className="text-xs text-zinc-600 italic">Aucune analyse pour l'instant.</p>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {state.history.map(item => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => setState({ ...state, activeResultId: item.id, activeResult: state.activeResult?.id === item.id ? state.activeResult : null })}
                   className={cn(
-                    "w-full text-left px-3 py-2 rounded-md border transition-all",
+                    "w-full text-left px-3 py-2.5 rounded-lg border transition-all group",
                     state.activeResultId === item.id
-                      ? "bg-indigo-600/20 border-indigo-500/40 text-white"
+                      ? "bg-indigo-600/20 border-indigo-500/30 text-white"
                       : "border-transparent text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
                   )}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs font-medium truncate">{item.questionName}</span>
-                    <FileText className={cn("w-3.5 h-3.5 shrink-0 mt-0.5", state.activeResultId === item.id ? "text-indigo-400" : "text-zinc-600")} />
+                  <div className="flex items-start gap-2">
+                    <FileText className={cn("w-3.5 h-3.5 shrink-0 mt-0.5", state.activeResultId === item.id ? "text-indigo-400" : "text-zinc-600 group-hover:text-zinc-400")} />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium leading-snug line-clamp-2">
+                        {item.questionText || item.questionName}
+                      </p>
+                      <span className="text-[10px] text-zinc-600 mt-0.5 block">{item.databaseName}</span>
+                    </div>
                   </div>
-                  <span className="text-[11px] text-zinc-600">{item.databaseName}</span>
                 </button>
               ))}
             </div>

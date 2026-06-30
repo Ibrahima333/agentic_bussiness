@@ -21,27 +21,31 @@ def build_system_prompt(database: str, schema: str, schema_markdown: str) -> str
         else "\n\n(Schéma non disponible — réponds sur la base des informations fournies.)"
     )
 
-    return f"""Tu es un data analyst senior et consultant business expert.
-Tu aides l'utilisateur à comprendre ses données, identifier des tendances,
-formuler des recommandations et prendre de meilleures décisions.
+    return f"""Tu es un data analyst senior expert de la base de données {database}.
+Tu connais EXACTEMENT le schéma de cette base et tu bases TOUTES tes réponses sur les vraies tables et colonnes disponibles.
 
 {db_context}{schema_section}
 
-Règles importantes :
+RÈGLES ABSOLUES :
 - Réponds TOUJOURS en français, de façon claire et concise.
-- NE génère JAMAIS de code SQL, Python ou autre code technique.
-- Concentre-toi sur les insights business, les recommandations et les explications.
-- Si l'utilisateur demande un graphique ou une requête SQL, rappelle-lui d'utiliser
-  le mode "Analyse" (onglet dédié) et propose plutôt une analyse textuelle.
-- Sois direct et actionnable : chaque réponse doit apporter de la valeur concrète.
-- Utilise des bullet points et une structure claire quand c'est pertinent.
-- Limite tes réponses à 300 mots maximum sauf si l'utilisateur demande plus de détails.
+- BASE-TOI TOUJOURS sur les vraies tables et colonnes du schéma ci-dessus. Ne cite JAMAIS des tables ou colonnes qui n'existent pas dans ce schéma.
+- Quand tu suggères un KPI ou une analyse, cite TOUJOURS la table et la colonne concernées (ex: "le chiffre d'affaires depuis la colonne `montant` de la table `commandes`").
+- Si le schéma est vide ou que tu ne connais pas une information, dis-le clairement.
+- NE génère JAMAIS de code SQL ou Python.
+- Si l'utilisateur veut une requête SQL ou un graphique, renvoie-le vers l'onglet "Analyse".
+- Sois direct et actionnable : chaque réponse doit apporter de la valeur concrète basée sur LES VRAIES DONNÉES.
+- Limite tes réponses à 300 mots maximum sauf demande explicite.
 """
 
 
 def load_schema_markdown(database: str, schema: str) -> str:
-    """Charge le fichier schéma déjà généré par le pipeline, si disponible."""
-    # Chercher dans le dossier schema/ les fichiers générés
+    """Charge le schéma de la base.
+
+    Priorité :
+    1. Fichier pré-généré par le pipeline (schema/<db>__<schema>.md)
+    2. Génération dynamique depuis la base si le fichier est absent
+    """
+    # 1. Fichier pré-généré
     schema_dir = Path("schema")
     candidates = [
         schema_dir / f"{database}__{schema}_schema.md",
@@ -50,7 +54,57 @@ def load_schema_markdown(database: str, schema: str) -> str:
     for path in candidates:
         if path.exists():
             return path.read_text(encoding="utf-8")
-    return ""
+
+    # 2. Génération dynamique depuis la base de données
+    if not database:
+        return ""
+    try:
+        from backend.utils.db_utils import run_query, _db_type
+        target = schema if schema and schema != database else database
+        db_type = _db_type()
+
+        if db_type == "mysql":
+            _, rows = run_query(
+                """SELECT table_name, column_name, column_type, is_nullable, column_key
+                   FROM information_schema.columns
+                   WHERE table_schema = %s
+                   ORDER BY table_name, ordinal_position""",
+                target, (target,)
+            )
+        else:
+            _, rows = run_query(
+                """SELECT table_name, column_name, data_type, is_nullable, ''
+                   FROM information_schema.columns
+                   WHERE table_schema = %s
+                   ORDER BY table_name, ordinal_position""",
+                target, (schema or "public",)
+            )
+
+        print(f"[chat] Schéma dynamique pour '{database}': {len(rows)} colonnes trouvées")
+        if not rows:
+            print(f"[chat] Aucune colonne trouvée pour '{target}'")
+            return ""
+
+        # Construire un markdown lisible par le LLM
+        tables: dict = {}
+        for table_name, col_name, col_type, nullable, col_key in rows:
+            tables.setdefault(table_name, []).append(
+                f"  - {col_name} ({col_type})"
+                + (" PK" if col_key == "PRI" else "")
+                + (" NULL" if nullable == "YES" else "")
+            )
+
+        lines = [f"## Base : {database}\n"]
+        for table, cols in sorted(tables.items()):
+            lines.append(f"### {table}")
+            lines.extend(cols)
+            lines.append("")
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        print(f"[chat] Erreur chargement schéma dynamique pour '{database}': {e}")
+        return ""
 
 
 def build_messages(

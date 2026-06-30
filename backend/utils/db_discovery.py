@@ -52,7 +52,16 @@ def list_databases() -> List[str]:
     else:
         # En PostgreSQL : liste des bases non-templates
         sql = "SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;"
-        _, rows = run_query(sql, "postgres")
+        # Essayer d'abord la base système "postgres", sinon utiliser la base configurée
+        try:
+            _, rows = run_query(sql, "postgres")
+        except Exception:
+            try:
+                from backend.db_config import DatabaseConfigManager
+                cfg_db = DatabaseConfigManager.instance().get().database or "postgres"
+                _, rows = run_query(sql, cfg_db)
+            except Exception:
+                return []
         return [row[0] for row in rows]
 
 

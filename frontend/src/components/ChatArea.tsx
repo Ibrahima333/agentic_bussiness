@@ -85,7 +85,9 @@ export function ChatArea({ state }: ChatAreaProps) {
           <div className="bg-zinc-50 border border-zinc-200 px-5 py-3.5 rounded-2xl rounded-tl-sm inline-block">
             <p className="text-sm text-zinc-600 leading-relaxed">
               Analyse sur <code className="bg-zinc-200 px-1.5 py-0.5 rounded text-zinc-800 text-xs">{activeResult.databaseName}</code>
-              {activeResult.schemaName && <> · <code className="bg-zinc-200 px-1.5 py-0.5 rounded text-zinc-800 text-xs">{activeResult.schemaName}</code></>}
+              {activeResult.schemaName && activeResult.schemaName !== activeResult.databaseName && (
+                <> · <code className="bg-zinc-200 px-1.5 py-0.5 rounded text-zinc-800 text-xs">{activeResult.schemaName}</code></>
+              )}
               {" "}via <span className="font-medium text-indigo-600">{activeResult.providerName}</span>
             </p>
           </div>

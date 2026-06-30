@@ -1,1330 +1,620 @@
-# Agentic Business Intelligence
+# AskData — BI Conversationnelle
 
-**Une nouvelle façon de faire de la Business Intelligence, pilotée par des Agents IA**
+> Posez vos questions métier en français. Obtenez du SQL, des graphiques et des insights en quelques secondes.
 
-![](agent_bi.png)
-
-## 🚀 Présentation générale
-
-**Agentic Business Intelligence** est un projet open-source qui propose une approche **radicalement nouvelle** de la Business Intelligence (BI) en entreprise.
-
-L’objectif est simple mais ambitieux :
-
-> 👉 **Permettre à n’importe quel utilisateur (consultant, analyste métier, data analyst, équipe produit) d’extraire de la valeur de données SQL brutes, sans dépendre d’outils BI lourds, coûteux ou complexes comme Power BI ou Tableau.**
-
-Pour cela, la solution repose sur un principe clé :
-**la BI pilotée par des Agents IA (Agent-centric BI)**.
+AskData est une application de **Business Intelligence conversationnelle** déployable en entreprise. Elle permet à chaque collaborateur de poser des questions sur ses données sans écrire une seule ligne de SQL, depuis un navigateur web sécurisé.
 
 ---
 
-## 🧠 Le problème que ce projet adresse
+## Sommaire
 
-Dans la majorité des entreprises aujourd’hui, la BI repose sur un modèle devenu lourd et rigide :
-
-* Des **bases de données SQL** (PostgreSQL, MySQL, SQL Server, etc.)
-* Des **outils BI** (Power BI, Tableau, Looker, etc.)
-* Des **intermédiaires humains** (analystes, consultants, ESN) pour :
-
-  * écrire les requêtes SQL
-  * construire des modèles de données (star schema, snowflake schema, etc.)
-  * maintenir les dashboards
-  * expliquer les chiffres aux métiers
-
-Ce modèle pose plusieurs problèmes :
-
-### ❌ Problèmes organisationnels
-
-* Dépendance forte aux profils techniques
-* Allers-retours incessants entre métiers et data teams
-* Temps long entre la question métier et la réponse
-
-### ❌ Problèmes techniques
-
-* Dashboards figés, peu flexibles
-* Coût élevé des licences BI
-* Complexité de maintenance
-* Difficulté d’audit (que fait vraiment un graphique ?)
-
-### ❌ Problèmes stratégiques
-
-* La donnée est là… mais la décision arrive trop tard
-* Les petites structures (PME, startups, consultants indépendants) sont souvent exclues de la BI “classique”
+1. [Présentation](#1-présentation)
+2. [Architecture](#2-architecture)
+3. [Prérequis](#3-prérequis)
+4. [Installation](#4-installation)
+5. [Configuration](#5-configuration)
+6. [Démarrage](#6-démarrage)
+7. [Fonctionnalités](#7-fonctionnalités)
+8. [Authentification et gestion des utilisateurs](#8-authentification-et-gestion-des-utilisateurs)
+9. [Pipeline d'analyse](#9-pipeline-danalyse)
+10. [API backend](#10-api-backend)
+11. [Déploiement en réseau local](#11-déploiement-en-réseau-local)
+12. [Résolution de problèmes](#12-résolution-de-problèmes)
 
 ---
 
-## 💡 L’idée fondatrice du projet
+## 1. Présentation
 
-**Et si on supprimait complètement l’interface BI classique ?**
-
-Et si :
-
-* l’utilisateur posait **directement ses questions métier en langage naturel**,
-* un **Agent IA** :
-
-  * comprenait le schéma de la base de données,
-  * générait la requête SQL adéquate,
-  * exécutait la requête,
-  * produisait les résultats,
-  * générait un graphique interactif pertinent,
-  * et fournissait des **insights et recommandations actionnables** ?
-
-👉 C’est exactement ce que fait **Agentic Business Intelligence**.
-
----
-
-## 🧩 Le concept : Agent-centric BI
-
-Le projet met en œuvre un pipeline BI **entièrement piloté par des Agents IA**, structuré autour du flux suivant :
+AskData transforme une base de données SQL en assistant analytique conversationnel :
 
 ```
-Question métier (langage naturel)
-        ↓
-Compréhension du schéma SQL
-        ↓
-Génération de requête SQL auditable
-        ↓
-Exécution sur la base de données
-        ↓
-Extraction des données (CSV)
-        ↓
-Visualisation interactive (HTML / Plotly)
-        ↓
-Insights & Actions (Markdown)
+Question en français
+      ↓
+Génération SQL automatique (LLM)
+      ↓
+Exécution sur votre base de données
+      ↓
+Graphique Plotly interactif
+      ↓
+Insights & recommandations business
 ```
 
-Chaque étape :
+**Ce que vous obtenez pour chaque question :**
+- Le SQL généré (auditable, téléchargeable)
+- Les données en tableau et CSV
+- Un graphique interactif HTML
+- Des KPIs calculés automatiquement (total, moyenne, min, max)
+- Un rapport Markdown avec insights et recommandations
+- Export PDF complet (graphique + rapport + extraits de chat)
 
-* est **transparente**
-* est **auditable**
-* produit des **artefacts concrets** (SQL, CSV, HTML, Markdown)
-
-👉 Rien n’est caché derrière une interface opaque.
-
----
-
-## 🔍 Ce que fait concrètement la solution
-
-Avec **Agentic Business Intelligence**, vous pouvez :
-
-* Travailler **directement sur vos bases PostgreSQL**
-* Sélectionner dynamiquement :
-
-  * la base de données
-  * le schéma SQL
-* Poser des questions comme :
-
-  * *“Quels sont les clients les plus rentables ?”*
-  * *“Quelle est l’évolution du chiffre d’affaires par mois ?”*
-  * *“Comment se répartissent les effectifs par âge et par genre ?”*
-* Obtenir automatiquement :
-
-  * une requête SQL propre et commentée
-  * un fichier CSV de résultats
-  * un graphique interactif (HTML)
-  * un document d’**insights & recommandations**
-
-Le tout :
-
-* **sans écrire de code**
-* **sans créer de dashboard**
-* **sans licence BI**
+**Sans :** écrire du code, configurer un outil BI, payer des licences.
 
 ---
 
-## 🛠️ À qui s’adresse ce projet ?
+## 2. Architecture
 
-### 🎯 Consultants Data / BI
+```
+┌─────────────────────────────────────────────────────────┐
+│                     Docker Network                       │
+│                                                         │
+│  ┌──────────────┐    ┌──────────────┐                   │
+│  │   Frontend   │    │   Backend    │                   │
+│  │ React + Vite │───▶│   FastAPI    │                   │
+│  │    Nginx     │    │  Python 3.12 │                   │
+│  │  Port 3000   │    │  Port 8000   │                   │
+│  └──────────────┘    └──────┬───────┘                   │
+│                             │                           │
+│                    ┌────────┴────────┐                  │
+│                    │                │                   │
+│             ┌──────▼──────┐  ┌──────▼──────┐           │
+│             │  mysql-auth │  │ Votre base  │           │
+│             │  MySQL 8.0  │  │ MySQL / PG  │           │
+│             │  (interne)  │  │  (externe)  │           │
+│             └─────────────┘  └─────────────┘           │
+│                                                         │
+│  ┌──────────────┐                                       │
+│  │   Adminer    │  ← Interface web mysql-auth           │
+│  │  Port 8080   │                                       │
+│  └──────────────┘                                       │
+└─────────────────────────────────────────────────────────┘
+```
 
-* Gagner du temps sur l’analyse
-* Réduire la dépendance aux outils BI lourds
-* Prototyper rapidement des analyses chez un client
+### Services Docker
 
-### 🎯 Analystes métier
+| Service | Rôle | Port exposé |
+|---|---|---|
+| `frontend` | Interface React + Nginx HTTPS | 3000 (HTTPS), 3080 (redirect) |
+| `backend` | API FastAPI + pipeline BI | 8009 (debug) |
+| `mysql-auth` | Base utilisateurs, KPIs, dashboard | interne uniquement |
+| `adminer` | Interface web pour mysql-auth | 8080 |
 
-* Devenir autonomes face aux données
-* Comprendre les chiffres sans attendre un dashboard
+### Stack technique
 
-### 🎯 PME / Startups
-
-* Mettre en place une BI moderne à coût réduit
-* Exploiter leurs données SQL existantes
-
-### 🎯 Recruteurs & managers techniques
-
-* Découvrir une approche innovante de la BI
-* Évaluer un projet complet mêlant Data, IA et Engineering
-
----
-
-## 🌱 Philosophie du projet
-
-Ce projet est :
-
-* **Open-source** (licence MIT)
-* **Transparent** (SQL généré, données visibles)
-* **Orienté valeur métier**, pas “jolis dashboards”
-* **Pragmatique** : fonctionne en local, en CLI, en TUI, via une interface web moderne (React + FastAPI) ou via Docker
-* **Évolutif** : conçu pour s’étendre à d’autres SGBDR et à un futur SaaS
-
----
-
-## 📌 En résumé
-
-**Agentic Business Intelligence** n’est pas :
-
-* un énième outil BI
-* un simple script IA
-* un gadget expérimental
-
-👉 C’est un **moteur de Business Intelligence piloté par des Agents IA**, pensé pour :
-
-* accélérer la prise de décision,
-* démocratiser l’accès à la donnée,
-* et réduire la dépendance aux outils BI traditionnels.
-
+| Couche | Technologies |
+|---|---|
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS |
+| Backend | FastAPI, Python 3.12, Uvicorn |
+| Base auth | MySQL 8.0 (Docker interne) |
+| Base métier | MySQL 8.x ou PostgreSQL (externe) |
+| LLM | Gemini 2.0 Flash (Google) ou Groq llama-3.3-70b |
+| Graphiques | Plotly (Python + HTML interactif) |
+| Auth | JWT (PyJWT) + bcrypt |
+| Conteneurisation | Docker + Docker Compose |
 
 ---
 
-# Installation et utilisation de la solution en local (codebase)
+## 3. Prérequis
 
-Cette section explique **pas à pas** comment installer **Agentic Business Intelligence** sur votre machine et exécuter un workflow complet, depuis une question métier jusqu’aux insights et recommandations.
+- **Docker Desktop** 4.x+ (Windows / macOS / Linux)
+- **Docker Compose** v2+ (inclus dans Docker Desktop)
+- Une base de données **MySQL 8.x** ou **PostgreSQL** accessible (votre base métier)
+- Une clé API **Gemini** (Google) ou **Groq**
 
-La solution fonctionne sur **Windows, Linux et macOS**.
+### Obtenir une clé API
+
+**Gemini** (recommandé, gratuit) :
+→ [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+
+**Groq** (gratuit, très rapide) :
+→ [https://console.groq.com/keys](https://console.groq.com/keys)
 
 ---
 
-## ✅ Prérequis
-
-Avant de commencer, assurez-vous d’avoir :
-
-### 1️⃣ Python 3.12.3 (obligatoire)
-
-Vérifiez votre version de Python :
+## 4. Installation
 
 ```bash
-python --version
-# ou
-python3 --version
-```
-
-La version doit être **3.12.3** (ou compatible 3.12.x).
-
-👉 Si besoin :
-
-* Windows / macOS : [https://www.python.org/downloads/](https://www.python.org/downloads/)
-* Linux : utilisez votre gestionnaire de paquets ou `pyenv`
-
----
-
-### 2️⃣ PostgreSQL accessible
-
-Vous devez disposer :
-
-* soit d’une base PostgreSQL locale,
-* soit d’un accès distant (host, port, user, password).
-
-La solution fonctionne aussi bien avec :
-
-* une base mono-schema (`public`)
-* une base multi-schemas (sélection du schéma intégrée).
-
----
-
-### 3️⃣ Gemini CLI / Codex CLI
-
-Le projet supporte désormais **plusieurs providers LLM** :
-
-* **Gemini CLI** (provider par défaut)
-* **Codex** (provider optionnel)
-
-👉 Gemini CLI :
-[https://cloud.google.com/gemini/docs/gemini-cli](https://cloud.google.com/gemini/docs/gemini-cli)
-
-👉 Codex CLI :
-[https://github.com/openai/codex](https://github.com/openai/codex)
-
-> ℹ️ Si vous ne précisez aucun provider, **Gemini** reste utilisé par défaut afin de préserver le comportement historique du projet.
-
----
-
-### 4️⃣ Node.js (uniquement pour l’interface web React)
-
-Si vous souhaitez utiliser l’interface web moderne du projet, installez également **Node.js 20+**.
-
-Vérification :
-
-```bash
-node --version
-npm --version
-```
-
----
-
-## 📥 Cloner le repository
-
-Clonez le dépôt GitHub :
-
-```bash
-git clone https://github.com/JosueAfouda/agentic-business-intelligence.git
-cd agentic-business-intelligence
-```
-
----
-
-## 🐍 Créer et activer un environnement virtuel (Python 3.12.3)
-
-L’utilisation d’un environnement virtuel est **fortement recommandée**.
-
-### 🔹 Windows (PowerShell)
-
-```powershell
-python -m venv .venv
-.venv\Scripts\activate
-```
-
-### 🔹 Linux / macOS
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-Vérifiez que l’environnement est actif :
-
-```bash
-which python
-# ou
-python --version
-```
-
----
-
-## 📦 Installer les dépendances
-
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
----
-
-## 🔐 Configuration des variables d’environnement
-
-Créez un fichier `.env` à la racine du projet :
-
-```env
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=your_password
-```
-
-> ℹ️ Le nom de la base de données et le schéma sont désormais passés **en argument** lors de l’exécution des scripts (ou via le TUI).
-
----
-
-## 🗂️ Structure du projet (vue simplifiée)
-
-```text
-agentic-business-intelligence/
-├─ requests/        # Questions métier (.txt)
-├─ sql/             # Requêtes SQL générées
-├─ schema/          # Schémas SQL documentés (.md)
-├─ outputs/         # Résultats (CSV, HTML, Markdown)
-├─ dataviz/         # Scripts Plotly générés
-├─ scripts/         # Moteur BI & TUI
-├─ backend/         # API FastAPI pour l’interface web
-├─ frontend/        # Frontend React + Vite + Tailwind CSS
-├─ utils/           # Connexion & découverte DB
-├─ .env
-```
-
----
-
-## 🆕 Providers LLM supportés
-
-Le moteur IA du projet est désormais **multi-provider** :
-
-* `gemini` → provider par défaut
-* `codex` → provider alternatif
-
-Les scripts concernés acceptent un argument optionnel :
-
-```bash
---provider gemini
-# ou
---provider codex
-```
-
-Si cet argument n’est pas fourni :
-
-* le comportement reste inchangé
-* **Gemini** est utilisé automatiquement
-
----
-
-## ⭐ Méthode recommandée : utiliser le TUI (interface texte)
-
-Le **TUI** (Text User Interface) est la manière **la plus simple et la plus sûre** d’utiliser la solution.
-
-### ▶️ Lancer le TUI
-
-```bash
-python -m scripts.tui2
-```
-
-Ou avec Codex :
-
-```bash
-python -m scripts.tui2 --provider codex
-```
-
-Le TUI vous guidera pas à pas :
-
-1. Sélection de la base PostgreSQL
-2. Sélection du schéma SQL
-3. Saisie de la question métier
-4. Génération du SQL
-5. Exécution de la requête
-6. Génération du graphique interactif
-7. Génération des insights & recommandations
-
-👉 **Aucune commande complexe à retenir.**
-
----
-
-## 🧪 Exemple de question métier (via le TUI)
-
-Exemple :
-
-> *"Quels sont les 5 films ayant généré le plus de revenus ?"*
-
-Le TUI produira automatiquement :
-
-* la requête SQL
-* le fichier CSV
-* le graphique HTML
-* le document Markdown *Insights & Actions*
-
-Vous pouvez ouvrir le graphique HTML directement dans votre navigateur.
-
-🎥 **Démonstration vidéo complète** :
-👉 [https://youtu.be/zLO-J3Uu7vg?si=zn8I8gspdVSZl0vu](https://youtu.be/zLO-J3Uu7vg?si=zn8I8gspdVSZl0vu)
-
----
-
-## 🔧 Mode avancé : exécution manuelle en CLI
-
-Si le TUI rencontre un problème ou si vous souhaitez un **contrôle total**, chaque étape est exécutable indépendamment en CLI.
-
----
-
-### 1️⃣ Générer le schéma de la base
-
-```bash
-python -m scripts.schema --database dvdrental --schema public
-```
-
-➡️ Génère :
-
-```text
-schema/dvdrental__public_schema.md
-```
-
----
-
-### 2️⃣ Créer une question métier
-
-```text
-requests/top_movies_by_revenue.txt
-```
-
-Contenu :
-
-```text
-Quels sont les 5 films ayant généré le plus de revenus ?
-```
-
----
-
-### 3️⃣ Générer la requête SQL
-
-```bash
-python -m scripts.generate_sql \
-  --request requests/top_movies_by_revenue.txt \
-  --database dvdrental \
-  --schema public \
-  --provider codex
-```
-
----
-
-### 4️⃣ Exécuter l’analyse SQL
-
-```bash
-python -m scripts.run_analysis \
-  --sql sql/top_movies_by_revenue.sql \
-  --database dvdrental \
-  --schema public
-```
-
-➡️ Résultat :
-
-```text
-outputs/top_movies_by_revenue/
-├─ top_movies_by_revenue.csv
-├─ metadata.json
-```
-
----
-
-### 5️⃣ Générer le code de visualisation
-
-```bash
-python -m scripts.generate_dataviz \
-  --request requests/top_movies_by_revenue.txt \
-  --provider codex
-```
-
----
-
-### 6️⃣ Exécuter la visualisation
-
-```bash
-python -m scripts.run_dataviz \
-  --dataviz dataviz/top_movies_by_revenue.py
-```
-
-➡️ Génère :
-
-```text
-outputs/top_movies_by_revenue/top_movies_by_revenue.html
-```
-
----
-
-### 7️⃣ Générer les Insights & Actions
-
-```bash
-python -m scripts.generate_insights_actions \
-  --request requests/top_movies_by_revenue.txt \
-  --provider codex
-```
-
-➡️ Génère :
-
-```text
-outputs/top_movies_by_revenue/top_movies_by_revenue.md
-```
-
----
-
-## ✅ Résultat final
-
-Pour une simple question métier, vous obtenez :
-
-* ✔️ SQL auditable
-* ✔️ Données CSV
-* ✔️ Graphique interactif (HTML)
-* ✔️ Insights & recommandations actionnables
-
----
-
-# Interface web moderne : React + FastAPI
-
-En plus du CLI et du TUI, le projet dispose désormais d’une **application web complète** composée de :
-
-* un **backend FastAPI** qui orchestre le pipeline existant
-* un **frontend React / Vite / Tailwind CSS** qui consomme cette API
-
-Cette interface permet :
-
-* de sélectionner la base, le schéma et le provider
-* d’exécuter le pipeline complet depuis une UI moderne
-* d’afficher SQL, résultats, metadata, graphique HTML, rapport Markdown et logs
-* de télécharger les artefacts générés
-
-## Lancer l’application web en local
-
-### 1) Lancer le backend FastAPI
-
-Depuis la racine du projet :
-
-```bash
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 2) Lancer le frontend React
-
-Dans un second terminal :
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Le frontend est alors disponible sur :
-
-```text
-http://localhost:3000
-```
-
-> ℹ️ En développement local, Vite proxifie automatiquement les appels `/api` vers `http://127.0.0.1:8000`.
-
-## Endpoints principaux du backend
-
-Le backend expose notamment :
-
-* `GET /api/health`
-* `GET /api/config`
-* `GET /api/results`
-* `GET /api/results/{question_name}`
-* `POST /api/pipeline/run`
-* `GET /api/artifacts/{question_name}/{artifact_type}`
-
----
-
-# Utiliser la solution via Docker (sans installer le codebase)
-
-Cette section s’adresse à celles et ceux qui veulent **utiliser la solution sans installer Python, sans créer d’environnement virtuel, et sans cloner le code**.
-
-👉 Vous avez juste besoin d’installer **Docker**.
-Ensuite, vous pourrez exécuter la solution en **TUI (recommandé)** ou en **CLI**, exactement comme en local.
-
-> 💡 Si vous êtes débutant avec Docker : prenez le temps de suivre cette section pas à pas.
-> Elle est volontairement très détaillée.
-
----
-
-## 1) Comprendre Docker en 30 secondes (vocabulaire)
-
-* **Image Docker** : un “pack” prêt à l’emploi qui contient l’application + ses dépendances.
-* **Container** : une instance qui exécute l’image (comme un programme en cours d’exécution).
-* **Volume** : un “partage” entre votre PC et le container pour conserver vos fichiers.
-* **.env** : un fichier qui contient vos variables d’environnement (accès PostgreSQL, etc.).
-
-👉 Sans volumes, **tout ce qui est généré dans le container disparaît** quand il s’arrête.
-C’est pour ça qu’on va utiliser des volumes afin que les fichiers `outputs/`, `sql/`, etc. restent sur votre machine.
-
----
-
-## 2) Prérequis : installer Docker Desktop
-
-### ✅ Windows / macOS
-
-Installez **Docker Desktop** :
-
-* [https://www.docker.com/products/docker-desktop/](https://www.docker.com/products/docker-desktop/)
-
-Après installation :
-
-* ouvrez Docker Desktop
-* attendez qu’il affiche “Docker is running” (ou équivalent)
-
-### ✅ Linux
-
-Installez Docker Engine :
-
-* [https://docs.docker.com/engine/install/](https://docs.docker.com/engine/install/)
-
----
-
-## 3) Vérifier que Docker fonctionne
-
-Ouvrez un terminal :
-
-### Windows
-
-* PowerShell ou Windows Terminal
-
-### macOS / Linux
-
-* Terminal
-
-Tapez :
-
-```bash
+# Cloner le projet
+git clone <url-du-repo>
+cd agentic-business-intelligence-main
+
+# Vérifier que Docker est lancé
 docker --version
-```
-
-Vous devez voir quelque chose comme :
-
-```text
-Docker version 26.x.x, build ...
-```
-
-Ensuite :
-
-```bash
-docker run hello-world
-```
-
-Si tout est OK, Docker affiche un message “Hello from Docker!”.
-
----
-
-## 4) Récupérer l’image Docker de la solution
-
-L’image officielle du projet est :
-
-```text
-josueafouda/agentic-b
-```
-
-### 4.1 Télécharger l’image
-
-```bash
-docker pull josueafouda/agentic-b:latest
-```
-
-> ℹ️ La première fois, cela peut prendre quelques minutes (c’est normal).
-
-### 4.2 Vérifier que l’image est disponible
-
-```bash
-docker images
-```
-
-Vous devriez voir une ligne similaire à :
-
-```text
-josueafouda/agentic-b   latest   ...
+docker compose version
 ```
 
 ---
 
-## 5) Créer un dossier de travail sur votre PC
+## 5. Configuration
 
-Créez un dossier où seront stockés vos fichiers et résultats.
+### 5.1 Fichier `.env`
 
-### Exemple (recommandé)
-
-* **Windows** : `C:\agentic-bi`
-* **macOS/Linux** : `~/agentic-bi`
-
-Dans ce dossier, créez la structure suivante :
-
-```text
-agentic-bi/
-├─ requests/
-├─ sql/
-├─ schema/
-├─ dataviz/
-├─ outputs/
-├─ .env
-├─ docker-compose.yml
-```
-
----
-
-## 6) Créer le fichier `.env` (obligatoire)
-
-Dans `agentic-bi/.env`, renseignez les accès PostgreSQL fournis.
-
-Exemple :
+Le fichier `.env` à la racine du projet contient toutes les variables de configuration. Il est déjà créé avec des valeurs par défaut. **Modifiez les valeurs sensibles avant le premier démarrage.**
 
 ```env
-DB_HOST=remote-postgres.company.com
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=********
-DB_SSLMODE=require
+# ── Base de données métier (votre base existante) ─────────────────────────────
+DB_TYPE=mysql                        # mysql ou postgresql
+DB_HOST=host.docker.internal         # hôte de votre base (depuis Docker)
+DB_PORT=3306                         # 3306 MySQL, 5432 PostgreSQL
+DB_USER=root                         # utilisateur
+DB_PASSWORD=votre_mot_de_passe       # mot de passe
+
+# ── Base MySQL interne (authentification AskData) ─────────────────────────────
+AUTH_DB_HOST=mysql-auth              # nom du service Docker (ne pas changer)
+AUTH_DB_PORT=3306
+AUTH_DB_USER=askdata
+AUTH_DB_PASSWORD=askdata_secret      # mot de passe utilisateur askdata
+AUTH_DB_ROOT_PASSWORD=askdata_root_secret  # mot de passe root MySQL
+AUTH_DB_NAME=askdata_auth
+
+# ── JWT (authentification) ────────────────────────────────────────────────────
+JWT_SECRET=changez_cette_valeur_en_production   # ⚠️ IMPORTANT : changer en prod
+JWT_EXPIRE_SECONDS=28800             # durée de session (8h par défaut)
+
+# ── Compte administrateur initial ────────────────────────────────────────────
+ADMIN_EMAIL=admin@askdata.local      # email du premier admin
+ADMIN_PASSWORD=Admin1234!            # ⚠️ changer avant mise en production
+
+# ── Clés LLM (fallback si non configurées via l'interface) ───────────────────
+GEMINI_API_KEY=votre_cle_gemini
+GROQ_API_KEY=votre_cle_groq          # commence par gsk_...
+
+# ── Frontend ──────────────────────────────────────────────────────────────────
+FRONTEND_ORIGIN=https://localhost:3000
 ```
 
-### Notes importantes
+### 5.2 Variables critiques à modifier
 
-* `DB_HOST` n’est **pas** forcément `localhost` : en entreprise, c’est souvent un serveur distant.
-* Si vous utilisez un VPN, assurez-vous qu’il est actif.
-* Si votre base n’utilise pas SSL, vous pouvez enlever `DB_SSLMODE`.
+| Variable | Pourquoi la changer |
+|---|---|
+| `JWT_SECRET` | Sécurité des tokens — doit être unique et long |
+| `AUTH_DB_PASSWORD` | Mot de passe de la base auth |
+| `AUTH_DB_ROOT_PASSWORD` | Mot de passe root MySQL |
+| `ADMIN_PASSWORD` | Mot de passe du premier compte admin |
+| `DB_PASSWORD` | Mot de passe de votre base métier |
 
 ---
 
-## 7) Créer le fichier `docker-compose.yml` (recommandé)
+## 6. Démarrage
 
-Ce fichier permet d’éviter des commandes Docker très longues.
-
-Créez `agentic-bi/docker-compose.yml` :
-
-```yaml
-services:
-  agentic-bi:
-    image: josueafouda/agentic-b:latest
-    env_file:
-      - .env
-    stdin_open: true
-    tty: true
-    volumes:
-      - ./requests:/app/requests
-      - ./sql:/app/sql
-      - ./schema:/app/schema
-      - ./dataviz:/app/dataviz
-      - ./outputs:/app/outputs
-      - ./.gemini_state:/home/appuser/.config
-```
-
-### Pourquoi ce fichier est important ?
-
-* Il transmet automatiquement les variables du `.env`
-* Il conserve sur votre PC :
-
-  * les questions (`requests/`)
-  * le SQL (`sql/`)
-  * le schéma (`schema/`)
-  * les visualisations (`dataviz/`)
-  * les résultats (`outputs/`)
-* Il conserve aussi l’authentification Gemini (`.gemini_state`) afin de ne pas se reconnecter à chaque fois.
-
----
-
-## 8) Lancer la solution en mode TUI (recommandé)
-
-Placez-vous dans le dossier `agentic-bi/` :
+### Premier démarrage
 
 ```bash
-cd agentic-bi
+# Construction et démarrage de tous les services
+docker compose up -d --build
+
+# Vérifier que tout tourne
+docker compose ps
 ```
 
-Puis lancez :
+**Au premier démarrage, le backend :**
+1. Attend que `mysql-auth` soit prêt (healthcheck automatique)
+2. Crée les tables `users`, `analyses`, `kpis`, `dashboard`, `llm_config`
+3. Crée le compte admin depuis `ADMIN_EMAIL` / `ADMIN_PASSWORD` du `.env`
+
+### Accès
+
+| Service | URL |
+|---|---|
+| **Application** | https://localhost:3000 |
+| **Adminer** (base auth) | http://localhost:8080 |
+| **Backend** (debug) | http://localhost:8009 |
+
+> ⚠️ Le navigateur affiche un avertissement de sécurité (certificat auto-signé). Cliquer **"Continuer quand même"** — c'est attendu en développement.
+
+### Connexion initiale
+
+```
+Email    : admin@askdata.local   (valeur de ADMIN_EMAIL dans .env)
+Mot de passe : Admin1234!        (valeur de ADMIN_PASSWORD dans .env)
+```
+
+### Commandes utiles
 
 ```bash
-docker compose run --rm agentic-bi
+# Démarrer
+docker compose up -d
+
+# Arrêter
+docker compose down
+
+# Rebuild complet (après modification de code)
+docker compose build --no-cache && docker compose up -d
+
+# Rebuild d'un seul service
+docker compose build --no-cache frontend && docker compose up -d
+docker compose build --no-cache backend  && docker compose up -d
+
+# Voir les logs
+docker compose logs backend --tail=50
+docker compose logs frontend --tail=20
+
+# Reset complet (supprime la base auth — perd les utilisateurs)
+docker compose down -v
+docker compose up -d --build
 ```
-
-### Premier lancement : authentification Gemini
-
-La première fois, Gemini CLI vous demandera de vous authentifier :
-
-* un lien sera affiché dans le terminal
-* ouvrez-le dans votre navigateur
-* connectez-vous avec votre compte Google (Gmail)
-* validez
-
-✅ Cette étape ne se fait qu’une fois, car l’état est sauvegardé dans `.gemini_state`.
 
 ---
 
-## 9) Workflow complet via TUI (exemple concret)
+## 7. Fonctionnalités
 
-Une fois dans le TUI :
+### 7.1 Analyse conversationnelle
 
-1. Choisissez votre **database**
-2. Choisissez votre **schema**
-3. Écrivez votre question métier, par exemple :
+L'onglet principal. Posez une question en français, le pipeline complet s'exécute automatiquement.
 
-> *Quels sont les 5 films ayant généré le plus de revenus ?*
+**Exemple :**
+> "Quels sont les 5 clients ayant généré le plus de chiffre d'affaires ce trimestre ?"
 
-4. Donnez un nom à la question (sans espaces), par exemple :
+**Résultat :**
+- Onglet **Results** — tableau des données + téléchargement CSV
+- Onglet **SQL** — requête générée (auditable, téléchargeable)
+- Onglet **Chart** — graphique Plotly interactif (épinglable au dashboard)
+- Onglet **KPIs** — métriques automatiques (Total, Moyenne, Min, Max) sur toutes les colonnes numériques, chaque valeur épinglable au dashboard
+- Onglet **Report** — insights & recommandations en Markdown + export PDF
 
-```text
-top_movies_by_revenue
-```
+**Option "Écraser les résultats existants" :** si activée, relancer la même question écrase les anciens artefacts au lieu de retourner une erreur.
 
-Le TUI exécutera automatiquement :
+### 7.2 Chat IA
 
-* génération du schéma
-* génération SQL
-* exécution SQL → CSV + metadata
-* génération dataviz → HTML
-* génération insights → Markdown
+Un assistant conversationnel qui connaît le schéma de votre base. Il ne génère pas de SQL — il répond à des questions d'analyse business, identifie des tendances, formule des recommandations.
 
----
+- Historique de conversation maintenu dans la session
+- Bouton **"Ajouter au rapport"** sur chaque message pour l'inclure dans le PDF
+- Contextualisation automatique sur le schéma de la base sélectionnée
 
-## 10) Où trouver les résultats ?
+### 7.3 Dashboard
 
-Sur votre PC, dans :
+Tableau de bord personnalisé par utilisateur (stocké en base MySQL).
 
-```text
-outputs/top_movies_by_revenue/
-```
+**Graphiques épinglés :**
+- Chaque graphique de l'onglet Chart peut être épinglé
+- Affichage en grille, redimensionnable (demi/pleine largeur)
+- Réorganisable par drag & drop
 
-Vous trouverez :
+**KPIs épinglés :**
+- Cartes affichant valeur + delta % (comparaison avec valeur précédente)
+- Bouton Rafraîchir → rejoue le SQL sans appel LLM
+- Couleur verte/rouge selon l'évolution
 
-* `top_movies_by_revenue.csv` → résultats tabulaires
-* `metadata.json` → métadonnées techniques
-* `top_movies_by_revenue.html` → graphique interactif
-* `top_movies_by_revenue.md` → insights & recommandations
+### 7.4 Export PDF
 
-### Ouvrir le graphique
+Depuis l'onglet Report, le PDF inclut :
+- En-tête avec question, base, provider, date
+- Métriques (lignes, colonnes, temps d'exécution)
+- KPIs épinglés dans le dashboard
+- Graphique (capture PNG ou fallback interactif)
+- Insights & recommandations
+- Extraits de Chat IA sélectionnés (si des messages ont été ajoutés au rapport)
 
-Double-cliquez sur :
+### 7.5 Explorateur de schéma
 
-```text
-outputs/top_movies_by_revenue/top_movies_by_revenue.html
-```
-
-ou ouvrez-le dans votre navigateur.
-
----
-
-## 11) Mode CLI via Docker (plus de contrôle)
-
-Si vous préférez exécuter chaque étape manuellement, vous pouvez le faire.
-
-> 💡 Le CLI est utile si :
->
-> * vous voulez reprendre une étape précise
-> * vous voulez mieux comprendre le workflow
-> * le TUI plante et vous souhaitez continuer
-
-Toutes les commandes suivantes sont à exécuter depuis le dossier `agentic-bi/`.
+Dans la sidebar, section **Schéma** : liste toutes les tables et colonnes de la base sélectionnée. Cliquer sur une colonne l'insère dans le champ de question.
 
 ---
 
-### 11.1 Générer le schéma
+## 8. Authentification et gestion des utilisateurs
+
+### Architecture auth
+
+- **JWT stateless** — token signé (HS256), expiration 8h par défaut
+- **Deux rôles** : `admin` et `user`
+- **Stockage** : table `users` dans `mysql-auth` (Docker interne)
+
+### Comptes et isolation
+
+Chaque utilisateur possède ses propres :
+- Historique d'analyses
+- KPIs épinglés
+- Dashboard
+
+Les données ne sont **jamais** visibles entre utilisateurs.
+
+### Panel Admin
+
+Accessible depuis la navbar (bouton **Admin**, visible uniquement pour les admins).
+
+| Action | Description |
+|---|---|
+| Voir tous les comptes | Liste avec rôle, statut, date de création |
+| Créer un compte | Email + mot de passe + rôle |
+| Désactiver / Réactiver | Bloque l'accès sans supprimer les données |
+| Supprimer | Suppression définitive avec toutes les données |
+
+> Seul l'admin peut créer des comptes — il n'y a pas d'inscription ouverte.
+
+### Configuration LLM
+
+**Admin uniquement :**
+- Configure les clés API Gemini et/ou Groq via la sidebar
+- Les clés sont testées avant sauvegarde
+- Stockées en base MySQL + fichier runtime (persistant entre redémarrages)
+- Au démarrage Docker, les clés sont rechargées automatiquement depuis MySQL
+
+**Utilisateurs :**
+- Voient uniquement un sélecteur Gemini / Groq
+- Ne peuvent ni voir ni modifier les clés API
+- L'icône 🔒 indique "configuré par l'administrateur"
+
+### Adminer — Inspecter la base auth
+
+Accès : [http://localhost:8080](http://localhost:8080)
+
+```
+Serveur   : mysql-auth
+Utilisateur : root
+Mot de passe : askdata_root_secret  (valeur de AUTH_DB_ROOT_PASSWORD)
+Base      : askdata_auth
+```
+
+Tables disponibles : `users`, `analyses`, `kpis`, `dashboard`, `llm_config`
+
+---
+
+## 9. Pipeline d'analyse
+
+Le pipeline exécute 6 étapes séquentielles pour chaque question :
+
+### Étape 1 — Génération du schéma
+```
+scripts/schema.py
+→ schema/<base>__<schema>_schema.md
+```
+Documente toutes les tables et colonnes de la base sélectionnée. Utilisé comme contexte pour le LLM.
+
+### Étape 2 — Génération SQL
+```
+scripts/generate_sql.py  +  prompt_template.txt
+→ sql/<nom_question>.sql
+```
+Le LLM reçoit le schéma + la question et génère une requête SQL adaptée.
+
+### Étape 3 — Exécution SQL
+```
+utils/db_utils.py
+→ outputs/<nom>/<nom>.csv  +  metadata.json
+```
+Connexion directe à votre base (MySQL ou PostgreSQL). Le CSV contient les données brutes.
+
+### Étape 4 — Génération dataviz
+```
+scripts/generate_dataviz.py  +  prompt_template_dataviz.txt
+→ dataviz/<nom>.py
+```
+Le LLM génère un script Python Plotly adapté aux données.
+
+### Étape 5 — Exécution dataviz
+```
+scripts/run_dataviz.py
+→ outputs/<nom>/<nom>.html
+```
+Exécute le script Plotly et produit un graphique HTML interactif.
+
+### Étape 6 — Génération insights
+```
+scripts/generate_insights_actions.py  +  prompt_template_insights.txt
+→ outputs/<nom>/<nom>.md
+```
+Le LLM analyse les données et produit des insights business et recommandations actionnables.
+
+### Artefacts produits
+
+```
+outputs/<nom_question>/
+├── <nom>.csv          — données brutes
+├── <nom>.html         — graphique Plotly interactif
+├── <nom>.md           — insights & recommandations
+├── metadata.json      — infos techniques (lignes, colonnes, temps d'exécution)
+└── backend_context.json  — contexte d'exécution (provider, DB, etc.)
+
+sql/
+└── <nom>.sql          — requête SQL générée
+
+schema/
+└── <base>__<schema>_schema.md  — schéma documenté
+```
+
+> Tous ces dossiers sont **gitignoré** et montés en volume Docker — ils persistent entre les redémarrages.
+
+### Refresh KPI sans LLM
+
+L'endpoint `POST /api/kpi/refresh/{nom}` rejoue directement le fichier SQL existant sur la base configurée, sans aucun appel LLM. Utilisé par le bouton Rafraîchir des cartes KPI du dashboard.
+
+---
+
+## 10. API backend
+
+Toutes les routes (sauf `/api/health` et `/api/auth/login`) requièrent un token JWT valide dans le header :
+```
+Authorization: Bearer <token>
+```
+
+### Auth
+
+| Méthode | Route | Rôle requis | Description |
+|---|---|---|---|
+| POST | `/api/auth/login` | — | Connexion, retourne JWT |
+| GET | `/api/auth/me` | user | Profil de l'utilisateur connecté |
+| GET | `/api/auth/users` | admin | Liste tous les utilisateurs |
+| POST | `/api/auth/users` | admin | Créer un utilisateur |
+| PATCH | `/api/auth/users/{id}` | admin | Modifier rôle ou statut |
+| DELETE | `/api/auth/users/{id}` | admin | Supprimer un utilisateur |
+
+### Configuration
+
+| Méthode | Route | Rôle requis | Description |
+|---|---|---|---|
+| GET | `/api/health` | — | Santé du service |
+| GET | `/api/config` | user | Bases, schémas, providers disponibles |
+| GET | `/api/schema/explore` | user | Tables et colonnes d'une base |
+| GET | `/api/llm-config` | user | Config LLM (clés masquées pour admin, providers pour user) |
+| POST | `/api/llm-config/test` | admin | Tester une clé API |
+| POST | `/api/llm-config/save` | admin | Sauvegarder la config LLM |
+| GET | `/api/db-config` | user | Config DB actuelle |
+| POST | `/api/db-config/connect` | user | Tester + sauvegarder une connexion DB |
+| POST | `/api/db-config/test` | user | Tester une connexion DB |
+| POST | `/api/db-config/save` | user | Sauvegarder une config DB |
+
+### Pipeline et résultats
+
+| Méthode | Route | Rôle requis | Description |
+|---|---|---|---|
+| POST | `/api/pipeline/run` | user | Lancer le pipeline complet |
+| GET | `/api/results` | user | Historique des analyses (filtré par user) |
+| GET | `/api/results/{nom}` | user | Résultat complet d'une analyse |
+| DELETE | `/api/history` | user | Supprimer tout l'historique |
+| GET | `/api/artifacts/{nom}/{type}` | — | Artefact (sql, csv, chart, report) |
+
+### Dashboard utilisateur
+
+| Méthode | Route | Description |
+|---|---|---|
+| GET | `/api/user/kpis` | KPIs épinglés de l'utilisateur |
+| POST | `/api/user/kpis` | Épingler un KPI |
+| DELETE | `/api/user/kpis/{id}` | Désépingler un KPI |
+| GET | `/api/user/dashboard` | Graphiques épinglés |
+| POST | `/api/user/dashboard` | Épingler un graphique |
+| DELETE | `/api/user/dashboard/{id}` | Désépingler un graphique |
+| POST | `/api/kpi/refresh/{nom}` | Rafraîchir un KPI (rejoue le SQL) |
+
+### Chat
+
+| Méthode | Route | Description |
+|---|---|---|
+| POST | `/api/chat/message` | Envoyer un message au data analyst IA |
+
+---
+
+## 11. Déploiement en réseau local
+
+Pour rendre l'application accessible depuis les autres postes de l'entreprise :
+
+### Étape 1 — Trouver l'IP de la machine serveur
 
 ```bash
-docker compose run --rm agentic-bi \
-  python -m scripts.schema --database dvdrental --schema public
+# macOS
+ipconfig getifaddr en0
+
+# Linux
+hostname -I
+
+# Windows
+ipconfig   # → chercher "Adresse IPv4"
 ```
 
----
+### Étape 2 — Régénérer le certificat TLS avec l'IP
 
-### 11.2 Créer une question
+Dans `frontend/Dockerfile`, modifier la ligne `openssl` :
 
-Créer un fichier :
-
-```text
-requests/top_movies_by_revenue.txt
+```dockerfile
+RUN openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+    -keyout /etc/nginx/certs/askdata.key \
+    -out /etc/nginx/certs/askdata.crt \
+    -subj "/CN=askdata" \
+    -addext "subjectAltName=IP:192.168.1.XX,IP:127.0.0.1,DNS:localhost"
 ```
 
-Contenu :
+Remplacer `192.168.1.XX` par l'IP réelle du serveur.
 
-```text
-Quels sont les 5 films ayant généré le plus de revenus ?
-```
-
----
-
-### 11.3 Générer le SQL
+### Étape 3 — Rebuild et démarrage
 
 ```bash
-docker compose run --rm agentic-bi \
-  python -m scripts.generate_sql \
-  --request requests/top_movies_by_revenue.txt \
-  --database dvdrental \
-  --schema public
+docker compose build --no-cache frontend
+docker compose up -d
 ```
+
+### Étape 4 — Ouvrir le firewall
+
+Sur la machine serveur, autoriser le port **3000** (et **8080** pour Adminer si besoin).
+
+### Accès depuis les autres postes
+
+```
+https://192.168.1.XX:3000
+```
+
+Les employés acceptent l'avertissement du certificat auto-signé une seule fois.
+
+### Avec un nom de domaine interne
+
+Si le réseau d'entreprise dispose d'un DNS interne (Active Directory), demander à l'administrateur réseau de créer :
+
+```
+askdata.entreprise.local → 192.168.1.XX
+```
+
+Accès via : `https://askdata.entreprise.local:3000`
 
 ---
 
-### 11.4 Exécuter la requête SQL
+## 12. Résolution de problèmes
+
+### L'application affiche "Internal Server Error" au démarrage
 
 ```bash
-docker compose run --rm agentic-bi \
-  python -m scripts.run_analysis \
-  --sql sql/top_movies_by_revenue.sql \
-  --database dvdrental \
-  --schema public
+docker compose logs backend --tail=30
 ```
 
----
+Cause la plus fréquente : `mysql-auth` n'est pas encore prêt. Attendre 10-15 secondes et recharger.
 
-### 11.5 Générer le script de dataviz
+### "Access denied for user 'askdata'"
+
+Le volume MySQL a été créé avant les variables d'environnement. Solution :
 
 ```bash
-docker compose run --rm agentic-bi \
-  python -m scripts.generate_dataviz \
-  --request requests/top_movies_by_revenue.txt
+docker compose down -v   # ⚠️ supprime les données de la base auth
+docker compose up -d --build
 ```
 
----
+### Le backend tourne encore avec l'ancien code
 
-### 11.6 Produire le HTML
+Docker a mis en cache les couches. Forcer le rebuild :
 
 ```bash
-docker compose run --rm agentic-bi \
-  python -m scripts.run_dataviz \
-  --dataviz dataviz/top_movies_by_revenue.py
+docker compose build --no-cache backend
+docker compose up -d
+```
+
+### La page de login boucle (refresh infini)
+
+Vider le localStorage du navigateur :
+```javascript
+// Console navigateur (F12)
+localStorage.clear()
+```
+Puis recharger la page.
+
+### Les graphiques n'apparaissent pas dans le dashboard
+
+Vérifier que la route `/api/artifacts` est accessible (elle ne requiert pas de JWT — les iframes ne peuvent pas envoyer de headers). Si le problème persiste, vérifier que les volumes `outputs/` sont bien montés.
+
+### Changer le mot de passe admin
+
+Via le panel Admin → modifier le rôle ou recréer le compte. Ou directement dans Adminer :
+```sql
+UPDATE users SET password_hash = '...' WHERE email = 'admin@askdata.local';
+```
+(le hash doit être généré avec bcrypt)
+
+### Connexion à une base sur la machine hôte
+
+Depuis Docker, utiliser `host.docker.internal` comme hôte (pas `localhost`).
+
+```
+Host     : host.docker.internal
+Port     : 3306 (MySQL) ou 5432 (PostgreSQL)
 ```
 
 ---
 
-### 11.7 Générer Insights & Actions
+## Licence
 
-```bash
-docker compose run --rm agentic-bi \
-  python -m scripts.generate_insights_actions \
-  --request requests/top_movies_by_revenue.txt
-```
-
----
-
-## 12) Résolution de problèmes (débutants)
-
-### ❓ “Docker compose” n’existe pas
-
-Essayez :
-
-```bash
-docker-compose --version
-```
-
-Si cela marche, utilisez :
-
-```bash
-docker-compose run --rm agentic-bi
-```
-
----
-
-### ❓ “Je n’arrive pas à me connecter à PostgreSQL”
-
-Vérifiez :
-
-* VPN activé ?
-* Host correct ?
-* Port ouvert ?
-* Credentials corrects ?
-* SSL requis ?
-
-Si pgAdmin fonctionne sur votre PC, Docker devrait fonctionner aussi.
-
----
-
-### ❓ “Je dois me reconnecter à Gemini à chaque fois”
-
-Vérifiez que le volume `.gemini_state` est bien monté dans `docker-compose.yml`.
-
----
-
-## 13) Recommandation finale
-
-✅ Si vous débutez : **utilisez le TUI**
-✅ Si vous voulez plus de contrôle : **utilisez le CLI**
-✅ Si un souci survient : vous pouvez reprendre le workflow étape par étape.
-
----
-
-# Évolutions prévues & contributions
-
-**Agentic Business Intelligence** est un projet vivant, conçu dès le départ pour évoluer.
-Il s’agit d’un socle solide sur lequel de nombreuses extensions sont possibles, aussi bien techniques que fonctionnelles.
-
-Cette section présente la **vision d’évolution** du projet et explique **comment contribuer**.
-
----
-
-## 🚧 Évolutions prévues (Roadmap)
-
-### 1️⃣ Support d’autres SGBDR (bases de données relationnelles)
-
-Actuellement, le projet est pleinement fonctionnel avec **PostgreSQL**, y compris :
-
-* détection des bases
-* détection des schémas
-* génération SQL contextualisée
-
-Les prochaines étapes naturelles sont :
-
-* **MySQL / MariaDB**
-* **SQL Server**
-* (à plus long terme) **Oracle**
-
-L’objectif est de :
-
-* mutualiser au maximum le moteur
-* adapter uniquement les couches :
-
-  * introspection du schéma
-  * dialecte SQL
-  * règles spécifiques (types, contraintes)
-
----
-
-### 2️⃣ Intégration de Data Warehouses Cloud
-
-Une évolution stratégique majeure concerne les plateformes cloud :
-
-* **BigQuery**
-* **Snowflake**
-* **Redshift**
-* **Databricks SQL**
-
-Cela permettrait :
-
-* d’adresser des environnements data modernes
-* d’utiliser Agentic BI sur des stacks analytiques à grande échelle
-* de connecter la solution à des données déjà centralisées
-
----
-
-### 3️⃣ Amélioration de la couche “Insights & Actions”
-
-La couche actuelle fournit :
-
-* un commentaire du graphique
-* des recommandations actionnables
-
-Évolutions envisagées :
-
-* insights transverses sur plusieurs questions
-* détection de tendances, anomalies, signaux faibles
-* génération de résumés exécutifs
-* comparaison entre périodes / segments
-* export PDF ou Markdown enrichi
-
----
-
-### 4️⃣ Scénarios métier & objectifs globaux
-
-Une évolution clé du projet consiste à introduire la notion de :
-
-> **Grand Objectif Business**
-
-Exemple :
-
-* “Améliorer la rentabilité client”
-* “Optimiser les effectifs RH”
-* “Réduire le churn”
-
-L’utilisateur pourrait :
-
-* définir un objectif global
-* poser plusieurs questions spécifiques
-* laisser l’Agent IA :
-
-  * relier les résultats
-  * produire une synthèse globale
-  * proposer un plan d’actions cohérent
-
----
-
-### 5️⃣ Vers une version SaaS (vision long terme)
-
-Même si le projet est aujourd’hui **open-source et local-first**, une évolution possible est :
-
-* une version **SaaS légère**
-* orientée PME / consultants
-* avec :
-
-  * connexion sécurisée aux bases
-  * UI web optionnelle
-  * exécution agentique en arrière-plan
-
-Cette version resterait fidèle à la philosophie :
-
-* transparence
-* auditabilité
-* maîtrise des données
-
----
-
-## 🤝 Comment contribuer au projet
-
-Les contributions sont **bienvenues** et encouragées.
-
-### 🌟 Première façon de contribuer : donner de la visibilité
-
-Si le projet vous est utile :
-
-* ⭐ **Mettez une étoile (Star) au repository GitHub**
-* Partagez le projet autour de vous
-* Parlez-en à vos collègues ou sur LinkedIn
-
-👉 C’est extrêmement précieux pour la visibilité du projet.
-
----
-
-### 🐛 Signaler un bug ou proposer une amélioration
-
-* Ouvrez une **Issue GitHub**
-* Décrivez :
-
-  * le contexte
-  * les étapes pour reproduire
-  * le comportement attendu
-  * le comportement observé
-
----
-
-### 🧑‍💻 Contribuer au code
-
-Les contributions techniques peuvent porter sur :
-
-* support de nouvelles bases de données
-* amélioration du TUI
-* amélioration de la robustesse
-* UX terminal
-* dataviz
-* insights & NLP
-* documentation
-
-Workflow recommandé :
-
-1. Fork du repository
-2. Création d’une branche dédiée
-3. Pull Request claire et documentée
-
----
-
-### 📚 Documentation & pédagogie
-
-Les contributions non-code sont **tout aussi importantes** :
-
-* amélioration du README
-* tutoriels
-* exemples métiers
-* traductions
-* retours d’expérience
-
----
-
-## 📬 Échanger avec l’auteur
-
-Vous pouvez :
-
-* ouvrir une issue pour discuter d’une idée
-* proposer une collaboration
-* suggérer un cas d’usage réel
-
-Le projet est aussi un **terrain d’expérimentation** et d’échange autour :
-
-* de la BI moderne
-* des Agents IA
-* de l’autonomisation des métiers face à la donnée
-
----
-
-## 🔖 Licence
-
-Le projet est publié sous **licence MIT**.
-
-Cela signifie :
-
-* usage libre (personnel, professionnel, commercial)
-* modification autorisée
-* redistribution autorisée
-
-> En contrepartie : respect de la licence et attribution.
-
----
-
-# À propos de l’auteur — Vision, parcours et positionnement professionnel
-
-## 👋 Qui suis-je ?
-
-<img width="1024" height="1536" alt="josue_coffe" src="https://github.com/user-attachments/assets/ae2eb112-f0d4-46c4-97cd-c67a3ec9714f" />
-
-Je m’appelle **Adégbola Josué Afouda**, Consultant Data & IA, avec une forte spécialisation en :
-
-* **Data Engineering**
-* **Analytics Engineering**
-* **Business Intelligence moderne**
-* **IA appliquée aux usages métier**
-
-Je conçois et développe des **Data Products concrets**, orientés **valeur métier**, avec une obsession constante :
-👉 *réduire la distance entre la donnée brute et la décision*.
-
----
-
-## 🧠 Pourquoi ce projet existe (au-delà de la technique)
-
-**Agentic Business Intelligence** n’est pas un projet académique ni un simple “side project”.
-
-Il est né :
-
-* de missions de conseil en entreprise,
-* de frustrations récurrentes autour des outils BI traditionnels,
-* et d’une conviction forte :
-
-> **La BI doit devenir plus simple, plus rapide, plus transparente et plus accessible.**
-
-Dans trop d’organisations :
-
-* les métiers attendent des dashboards figés,
-* les équipes data sont sur-sollicitées,
-* les décisions arrivent trop tard.
-
-Ce projet est ma réponse **concrète** à ce constat.
-
----
-
-## 🛠️ Ce que ce projet démontre concrètement
-
-À travers Agentic Business Intelligence, je démontre ma capacité à :
-
-### 🔹 Concevoir une architecture complète de bout en bout
-
-* Connexion sécurisée à des bases PostgreSQL
-* Découverte automatique des bases et schémas
-* Orchestration multi-étapes (SQL → Data → Visualisation → Insights)
-
-### 🔹 Exploiter l’IA de manière pragmatique
-
-* Agents IA orientés tâches (SQL, dataviz, insights)
-* Prompts robustes, auditables et maîtrisés
-* Garde-fous anti-hallucination
-* IA au service de l’humain, pas l’inverse
-
-### 🔹 Construire une UX sans interface graphique
-
-* CLI avancée
-* TUI (Text User Interface) ergonomique
-* Expérience fluide pour des utilisateurs non techniques
-
-### 🔹 Livrer un produit “production-ready”
-
-* Mode local
-* Mode Docker
-* Open-source
-* Documentation complète
-* Extensible à d’autres SGBDR et environnements
-
----
-
-## 🎯 Mon positionnement aujourd’hui
-
-Je me positionne comme :
-
-* **Consultant Data / Analytics Engineer**
-* **Builder de solutions IA appliquées**
-* **Product-oriented Data Engineer**
-
-Je m’intéresse particulièrement à :
-
-* l’autonomisation des équipes métier,
-* la BI sans dashboards lourds,
-* les architectures data simples mais puissantes,
-* l’IA comme levier de productivité réelle.
-
----
-
-## 🤝 Ouvert aux opportunités
-
-Je suis ouvert à :
-
-* des **missions de conseil** (freelance / consulting),
-* des **rôles Data / Analytics / AI Engineer**,
-* des **discussions avec des équipes produit ou data**,
-* des collaborations open-source ou entrepreneuriales.
-
-Si ce projet vous parle, il est très probable que nous ayons des sujets en commun.
-
----
-
-## 🌍 Me contacter / suivre mes travaux
-
-* 💻 GitHub : [https://github.com/JosueAfouda](https://github.com/JosueAfouda)
-* 🎥 YouTube (démos & réflexions Data / IA) :
-  [J.A DATATECH CONSULTING](https://www.youtube.com/@RealProDatascience)
-* 💬 Discussions, retours, idées : via GitHub Issues
-* 💬 Email: afouda.josue@gmail.com
-
----
-
-## ⭐ Un dernier mot
-
-Si ce projet vous a :
-
-* appris quelque chose,
-* inspiré,
-* donné envie de repenser la BI,
-
-👉 **mettez une étoile ⭐ au repository**,
-👉 partagez-le autour de vous,
-👉 ou contactez-moi pour en discuter.
-
-**Agentic Business Intelligence** est autant un projet technique qu’une vision de la Data de demain.
-
-Merci d’avoir pris le temps de le découvrir.
+MIT — usage libre, modification autorisée, redistribution autorisée avec attribution.
