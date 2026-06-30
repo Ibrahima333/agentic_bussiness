@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { TableProperties, ChevronRight, ChevronDown, RefreshCw, KeyRound, Link } from "lucide-react";
 import { cn } from "../lib/utils";
+import { apiFetch } from "../lib/api";
 
 interface Column {
   name: string;
@@ -33,12 +34,7 @@ export function SchemaExplorer({ database, schema, onInsert }: Props) {
     setError(null);
     try {
       const params = new URLSearchParams({ database, schema });
-      const res = await fetch(`/api/schema/explore?${params}`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail ?? `Erreur ${res.status}`);
-      }
-      const data = await res.json();
+      const data = await apiFetch<{ tables: Table[] }>(`/api/schema/explore?${params}`);
       setTables(data.tables ?? []);
       setExpanded(new Set()); // tout replié par défaut
     } catch (e) {
