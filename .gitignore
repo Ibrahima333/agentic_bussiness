@@ -229,6 +229,8 @@ frontend/node_modules/
 !frontend/tsconfig.node.json
 !frontend/vite.config.ts
 !frontend/index.html
+!frontend/src/lib/
+!frontend/src/lib/**
 
 # ── Outils de développement ───────────────────────────────────────────────────
 .claude/
