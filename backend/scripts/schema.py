@@ -184,15 +184,6 @@ def generate_schema(database_name: str, schema_name: str = "public"):
     # Le frontend peut envoyer le nom du schéma ("public") à la place de la base
     # réelle — la config runtime est la seule source de vérité fiable.
     if db_type != "mysql":
-        try:
-            from backend.db_config import DatabaseConfigManager
-            cfg_db = DatabaseConfigManager.instance().get().database
-            if cfg_db:
-                if cfg_db != database_name:
-                    print(f"[schema] PostgreSQL : database_name corrigé '{database_name}' → '{cfg_db}'")
-                database_name = cfg_db
-        except Exception:
-            pass
         if not schema_name:
             schema_name = "public"
 
